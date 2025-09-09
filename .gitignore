@@ -1,97 +1,19 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Repo-level ignores (frontend/backend have their own .gitignore)
 
-# C extensions
-*.so
+# OS files
+.DS_Store
+Thumbs.db
 
-# Virtual environment
-.venv/
-venv/
-env/
-ENV/
-
-# Distribution / packaging
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# FastAPI / Starlette
-*.db
-
-# Sphinx documentation
-docs/_build/
-\# PyBuilder
-.pybuilder/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# VS Code
+# Editors/IDE
 .vscode/
-
-# IDEs
 .idea/
 *.iml
 
 # Logs
 *.log
 
-# macOS
-.DS_Store
+# Root-level env only (subprojects manage their own)
+/.env
 
-# Windows
-Thumbs.db
-
-# Python Env
-.env
-venv/
-
-# Supabase
-supabase/
-
-# pdf storage
-tmp/
-pdfs/
+# Optional local tooling dirs
+/supabase/

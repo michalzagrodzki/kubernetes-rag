@@ -1,0 +1,63 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Env files / secrets
+.env
+.env.*
+.envrc
+
+# Packaging / build
+build/
+dist/
+wheels/
+*.egg-info/
+.eggs/
+sdist/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# Framework / app data
+instance/
+.webassets-cache
+
+# Databases
+*.db
+*.sqlite3
+
+# Local data directories
+tmp/
+pdfs/
+uploads/
+
+# Logs
+logs/
+*.log
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
