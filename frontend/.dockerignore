@@ -1,0 +1,33 @@
+# Keep Docker contexts small and reproducible for the frontend build
+
+# Dependencies
+node_modules/
+
+# Build outputs and caches
+dist/
+build/
+.vite/
+.cache/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing / coverage
+coverage/
+
+# Env files (pass build args instead)
+.env
+.env.local
+.env.*.local
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+
+# Git metadata
+.git
+.gitignore
