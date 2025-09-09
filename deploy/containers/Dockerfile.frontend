@@ -6,13 +6,14 @@ WORKDIR /app
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
 
-COPY package*.json ./
+# Copy only the frontend manifest first to leverage layer caching
+COPY frontend/package*.json ./
 RUN npm ci
 
-# Copy the rest of the frontend source
-# Note: build context should be the frontend project root
-COPY . .
+# Copy the rest of the frontend source from the nested folder
+COPY frontend/ ./
 
+# Build production assets
 RUN npm run build
 
 # Serve stage

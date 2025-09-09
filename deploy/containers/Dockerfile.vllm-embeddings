@@ -29,12 +29,12 @@ WORKDIR /app
 COPY deploy/containers/vllm-embeddings.entrypoint.sh /entrypoint.sh
 RUN chown appuser:appuser /entrypoint.sh && chmod 0755 /entrypoint.sh
 
+COPY deploy/containers/healthcheck_vllm.py /app/healthcheck_vllm.py
+RUN chown appuser:appuser /app/healthcheck_vllm.py && chmod 0755 /app/healthcheck_vllm.py
+
 USER appuser
 
 EXPOSE 8000
-
-COPY deploy/containers/healthcheck_vllm.py /app/healthcheck_vllm.py
-RUN chown appuser:appuser /app/healthcheck_vllm.py && chmod 0755 /app/healthcheck_vllm.py
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD python /app/healthcheck_vllm.py

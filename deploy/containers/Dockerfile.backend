@@ -1,4 +1,5 @@
-# Multi-arch lightweight Python image
+######## Backend (FastAPI) ########
+# Build stage: compile wheels for Python deps (psycopg2 needs libpq-dev)
 FROM python:3.11-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -7,16 +8,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /wheels
 
-# Build dependencies (compile wheels only once)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
   && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt /wheels/requirements.txt
+# Use repo root as context; requirements live in backend/
+COPY backend/requirements.txt /wheels/requirements.txt
 RUN python -m pip install --upgrade pip && \
     pip wheel --no-cache-dir --wheel-dir /wheels -r /wheels/requirements.txt
 
+# Runtime stage
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -26,19 +28,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Runtime libs only
+# Runtime libs only (psycopg2)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
   && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies from prebuilt wheels
-COPY requirements.txt /app/requirements.txt
+# Install deps from prebuilt wheels
+COPY backend/requirements.txt /app/requirements.txt
 COPY --from=builder /wheels /wheels
 RUN python -m pip install --upgrade pip && \
     pip install --no-index --find-links=/wheels -r /app/requirements.txt
 
-# Copy application source
-COPY . /app
+# Copy only backend application source
+COPY backend/ /app/
 
 # Create non-root user and ensure write access to PDF_DIR
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser && \
@@ -47,4 +49,5 @@ USER appuser
 
 EXPOSE 8000
 
+# app.py is at /app/app.py with FastAPI instance `app`
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

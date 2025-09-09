@@ -26,6 +26,30 @@ This repository aims to demonstrate how to run a Retrieval-Augmented Generation 
 - Apply manifests: Kubernetes manifests will be added under `deploy/k8s/` (coming soon). For now, follow progress in `deploy/` and `deploy/k8s-terraform/`.
 - Access: once deployed, expose via `kubectl port-forward` or Ingress and open `http://localhost:8000/docs`.
 
+## Build and Run (Docker)
+
+Backend (FastAPI)
+- Build: `docker build -f deploy/containers/Dockerfile.backend -t rag-backend:dev .`
+- Run: `docker run --rm -p 8000:8000 --env-file .env rag-backend:dev`
+- Env required (in `.env` or passed as `-e`): `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `POSTGRES_URL` (and optionally `OPENAI_MODEL`, `EMBEDDING_MODEL`, `SUPABASE_TABLE`, `PDF_DIR`).
+- App serves on `http://localhost:8000` (OpenAPI docs at `/docs`).
+
+Frontend (Vite + Nginx)
+- Build: `docker build -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=http://localhost:8000 -t rag-frontend:dev .`
+- Run: `docker run --rm -p 8080:8080 rag-frontend:dev`
+- App serves static files on `http://localhost:8080` and talks to the backend at `VITE_API_URL`.
+
+vLLM Embeddings (GPU)
+- Build: `docker build -f deploy/containers/Dockerfile.vllm-embeddings -t rag-vllm-embeddings:qwen3-8b .`
+- Run (requires NVIDIA GPU and drivers):
+  `docker run --rm --gpus all -p 8001:8000 -v qwen-hf-cache:/data/hf-cache -e MODEL_ID=Qwen/Qwen3-Embedding-8B -e TENSOR_PARALLEL=1 -e GPU_MEM_UTIL=0.9 -e MAX_MODEL_LEN=8192 -e PREFETCH=1 rag-vllm-embeddings:qwen3-8b`
+- Optional: add `-e HF_TOKEN=$HF_TOKEN` if the model requires Hugging Face auth.
+- API base: `http://localhost:8001/v1` (embeddings at `/embeddings`, models at `/models`).
+
+Notes
+- CORS: The backend’s allowed origins are whitelisted for typical dev ports. If serving the frontend on a different port/host (e.g., 8080), add it to the `allow_origins` list in `backend/app.py` for local testing.
+ - vLLM embeddings image: See `deploy/containers/README-vllm-embeddings.md` for more details and production tips.
+
 ## Roadmap
 - Add Kustomize/Helm manifests under `deploy/k8s/` with Secrets, PVCs, and Ingress.
 - Horizontal Pod Autoscaler, PodDisruptionBudgets, and readiness/liveness probes.
