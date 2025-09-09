@@ -1,0 +1,26 @@
+# Global ignore for backend build context
+.git
+.gitignore
+.DS_Store
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+env/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Local files
+.env
+pdfs/
+
+# Node artifacts if present
+node_modules/
+dist/
+build/
+
+# Terraform local state (if accidentally used as context)
+deploy/k8s-terraform/.terraform/
+deploy/k8s-terraform/terraform.tfstate*
+

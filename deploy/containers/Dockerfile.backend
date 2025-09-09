@@ -1,0 +1,50 @@
+# Multi-arch lightweight Python image
+FROM python:3.11-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /wheels
+
+# Build dependencies (compile wheels only once)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /wheels/requirements.txt
+RUN python -m pip install --upgrade pip && \
+    pip wheel --no-cache-dir --wheel-dir /wheels -r /wheels/requirements.txt
+
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PDF_DIR=/app/pdfs
+
+WORKDIR /app
+
+# Runtime libs only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install dependencies from prebuilt wheels
+COPY requirements.txt /app/requirements.txt
+COPY --from=builder /wheels /wheels
+RUN python -m pip install --upgrade pip && \
+    pip install --no-index --find-links=/wheels -r /app/requirements.txt
+
+# Copy application source
+COPY . /app
+
+# Create non-root user and ensure write access to PDF_DIR
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser && \
+    mkdir -p ${PDF_DIR} && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

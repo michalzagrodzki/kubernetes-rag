@@ -1,0 +1,17 @@
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+pydantic==2.11.5
+langchain==0.3.25
+langchain-community==0.3.24
+langchain-openai==0.3.18
+supabase==2.15.2
+openai==1.82.1
+pypdf
+sqlmodel==0.0.24
+alembic==1.16.1
+asyncpg==0.30.0
+python-multipart==0.0.20
+greenlet
+psycopg2
+jiter>=0.2.0
+pgvector

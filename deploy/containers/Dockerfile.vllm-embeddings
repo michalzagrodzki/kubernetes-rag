@@ -1,0 +1,42 @@
+# vLLM OpenAI-compatible server for embeddings (Qwen3-Embedding-8B)
+# Focused on runtime performance and container security.
+
+FROM vllm/vllm-openai:latest AS runtime
+
+# Security and performance-related envs
+ENV PYTHONUNBUFFERED=1 \
+    HF_HOME=/data/hf-cache \
+    TRANSFORMERS_CACHE=/data/hf-cache \
+    HF_HUB_ENABLE_HF_TRANSFER=1 \
+    VLLM_NO_USAGE_STATS=1 \
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+    NCCL_DEBUG=INFO \
+    HOST=0.0.0.0 \
+    PORT=8000 \
+    MODEL_ID=Qwen/Qwen3-Embedding-8B \
+    TENSOR_PARALLEL=1 \
+    GPU_MEM_UTIL=0.9 \
+    MAX_MODEL_LEN=8192 \
+    PREFETCH=0
+
+# Create non-root user and writable dirs for cache
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser && \
+    mkdir -p /data/hf-cache && chown -R appuser:appuser /data
+
+WORKDIR /app
+
+# Add a minimal, safe entrypoint
+COPY deploy/containers/vllm-embeddings.entrypoint.sh /entrypoint.sh
+RUN chown appuser:appuser /entrypoint.sh && chmod 0755 /entrypoint.sh
+
+USER appuser
+
+EXPOSE 8000
+
+COPY deploy/containers/healthcheck_vllm.py /app/healthcheck_vllm.py
+RUN chown appuser:appuser /app/healthcheck_vllm.py && chmod 0755 /app/healthcheck_vllm.py
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD python /app/healthcheck_vllm.py
+
+ENTRYPOINT ["/entrypoint.sh"]
