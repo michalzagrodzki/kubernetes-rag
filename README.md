@@ -33,12 +33,12 @@ Backend (FastAPI)
 - Run: `docker run --rm -p 8000:8000 --env-file .env rag-backend:dev`
 - Env required (in `.env` or passed as `-e`): `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `POSTGRES_URL` (and optionally `OPENAI_MODEL`, `EMBEDDING_MODEL`, `SUPABASE_TABLE`, `PDF_DIR`).
 - App serves on `http://localhost:8000` (OpenAPI docs at `/docs`).
-
+****
 Frontend (Vite + Nginx)
 - Build: `docker build -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=http://localhost:8000 -t rag-frontend:dev .`
 - Run: `docker run --rm -p 8080:8080 rag-frontend:dev`
 - App serves static files on `http://localhost:8080` and talks to the backend at `VITE_API_URL`.
-
+****
 vLLM Embeddings (GPU)
 - Build: `docker build -f deploy/containers/Dockerfile.vllm-embeddings -t rag-vllm-embeddings:qwen3-8b .`
 - Run (requires NVIDIA GPU and drivers):
