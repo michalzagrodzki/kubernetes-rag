@@ -46,16 +46,40 @@ vLLM Embeddings (GPU)
 - Optional: add `-e HF_TOKEN=$HF_TOKEN` if the model requires Hugging Face auth.
 - API base: `http://localhost:8001/v1` (embeddings at `/embeddings`, models at `/models`).
 
-Nomic Embeddings (CPU-only)
-- Build: `docker build -f deploy/containers/Dockerfile.nomic-embed -t my-nomic-embed:1.0 .`
-- Run: `docker run -d --name nomic-embed -p 8001:80 my-nomic-embed:1.0`
-- Uses Nomic's nomic-embed-text-v1.5 model (CPU-optimized, works on all platforms).
-- Lightweight alternative to vLLM with good performance on CPU.
-- API base: `http://localhost:8001` (check Nomic documentation for endpoint details).
+Nomic Embeddings (CPU-only):
+Pull model:
+```bash
+mkdir -p ~/Doc/W/rag-k8s/models
+cd ~/Doc/W/rag-k8s/models
 
-Notes
-- CORS: The backend’s allowed origins are whitelisted for typical dev ports. If serving the frontend on a different port/host (e.g., 8080), add it to the `allow_origins` list in `backend/app.py` for local testing.
- - vLLM embeddings image: See `deploy/containers/README-vllm-embeddings.md` for more details and production tips.
+git lfs install
+git clone https://huggingface.co/nomic-ai/nomic-embed-text-v1.5
+# (optional but safe) ensure all LFS files are present
+cd nomic-embed-text-v1.5 && git lfs pull && cd ..
+```
+
+Update config.json inside nomic model with following values:
+```json
+  "hidden_size": 768,
+  "num_attention_heads": 12,
+  "num_hidden_layers": 12
+```
+
+Pull image:
+```bash
+# CPU-only (portable; good for M1/M2 too)
+docker pull ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+
+# GPU (Ampere-80 like A100):
+docker pull ghcr.io/huggingface/text-embeddings-inference:1.8
+```
+Run image:
+```bash
+docker run --rm -p 8080:3000 \
+  --mount type=bind,source="$HOME/rag-tei/models",target=/data \
+  ghcr.io/huggingface/text-embeddings-inference:cpu-1.8 \
+  --model-id /data/nomic-embed-text-v1.5
+```
 
 ## Roadmap
 - Add Kustomize/Helm manifests under `deploy/k8s/` with Secrets, PVCs, and Ingress.

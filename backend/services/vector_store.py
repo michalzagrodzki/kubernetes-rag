@@ -1,3 +1,4 @@
+from backend.services.tei_embeddings import TEIEmbeddings
 from supabase import create_client
 from langchain_community.vectorstores import SupabaseVectorStore
 from langchain_openai import OpenAIEmbeddings
@@ -10,10 +11,13 @@ supabase_client = create_client(
 )
 
 # 2) Initialize OpenAI embeddings
-embeddings = OpenAIEmbeddings(
-    model=settings.embedding_model,
-    openai_api_key=settings.openai_api_key,
-)
+# embeddings = OpenAIEmbeddings(
+#    model=settings.embedding_model,
+#    openai_api_key=settings.openai_api_key,
+#   base_url=settings.embeddings_base_url if getattr(settings, "embeddings_base_url", None) else None,
+#)
+
+embeddings = TEIEmbeddings(base_url="http://localhost:8080")
 
 # 3) Now pass the client into SupabaseVectorStore
 vector_store = SupabaseVectorStore(

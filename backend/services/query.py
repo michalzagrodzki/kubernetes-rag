@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 openai.api_key = settings.openai_api_key
 embedding_model = OpenAIEmbeddings(
     model=settings.embedding_model,
-    openai_api_key=settings.openai_api_key
+    openai_api_key=settings.openai_api_key,
+    # Route embeddings to a custom OpenAI-compatible base if provided (e.g., Docker Desktop model-runner)
+    base_url=settings.embeddings_base_url if getattr(settings, "embeddings_base_url", None) else None,
 )
 
 client = AsyncOpenAI(api_key=settings.openai_api_key)
