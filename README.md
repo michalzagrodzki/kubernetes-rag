@@ -46,6 +46,13 @@ vLLM Embeddings (GPU)
 - Optional: add `-e HF_TOKEN=$HF_TOKEN` if the model requires Hugging Face auth.
 - API base: `http://localhost:8001/v1` (embeddings at `/embeddings`, models at `/models`).
 
+Nomic Embeddings (CPU-only)
+- Build: `docker build -f deploy/containers/Dockerfile.nomic-embed -t my-nomic-embed:1.0 .`
+- Run: `docker run -d --name nomic-embed -p 8001:80 my-nomic-embed:1.0`
+- Uses Nomic's nomic-embed-text-v1.5 model (CPU-optimized, works on all platforms).
+- Lightweight alternative to vLLM with good performance on CPU.
+- API base: `http://localhost:8001` (check Nomic documentation for endpoint details).
+
 Notes
 - CORS: The backend’s allowed origins are whitelisted for typical dev ports. If serving the frontend on a different port/host (e.g., 8080), add it to the `allow_origins` list in `backend/app.py` for local testing.
  - vLLM embeddings image: See `deploy/containers/README-vllm-embeddings.md` for more details and production tips.

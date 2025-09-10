@@ -1,0 +1,8 @@
+FROM ai/nomic-embed-text-v1.5
+
+# Expose API port
+EXPOSE 80
+
+# Default command already runs the embedding server
+# but we can keep entrypoint for clarity
+CMD ["serve"]
