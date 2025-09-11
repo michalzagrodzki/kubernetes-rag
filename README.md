@@ -35,7 +35,7 @@ docker build -f deploy/containers/Dockerfile.backend -t rag-backend:dev .
 ```
 - Run: 
 ```bash
-docker run --rm -p 8000:8000 --env-file .env rag-backend:dev
+docker run --rm -p 8000:8000 --env-file backend/.env rag-backend:dev
 ```
 - Env required (in `.env` or passed as `-e`): `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `POSTGRES_URL` (and optionally `OPENAI_MODEL`, `EMBEDDING_MODEL`, `SUPABASE_TABLE`, `PDF_DIR`).
 - App serves on `http://localhost:8000` (OpenAPI docs at `/docs`).

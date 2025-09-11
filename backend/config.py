@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     embeddings_base_url: str | None = Field(None, env="EMBEDDINGS_BASE_URL")
 
     # TEI embeddings service
-    tei_base_url: str = Field("http://localhost:7070", env="TEI_BASE_URL")
+    # If running locally, not in container, than use: http://localhost:7070
+    tei_base_url: str = Field("http://host.docker.internal:7070", env="TEI_BASE_URL")
 
     # RAG params
     top_k: int = Field(5, env="TOP_K")
