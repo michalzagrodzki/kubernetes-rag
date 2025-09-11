@@ -1,4 +1,5 @@
 import os
+import sys
 from typing import Any
 import uuid
 from fastapi import FastAPI, UploadFile, File, HTTPException, APIRouter, Depends
@@ -19,7 +20,8 @@ from services.query import answer_question, stream_answer
 
 logging.basicConfig(
     level=logging.DEBUG,  # or DEBUG
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
