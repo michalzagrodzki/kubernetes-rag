@@ -76,12 +76,13 @@ docker pull ghcr.io/huggingface/text-embeddings-inference:1.8
 ```
 Run image:
 ```bash
-docker run --rm -p 8080:80 \
+docker run -d -p 8080:80 \
   --platform linux/amd64 \
   --mount type=bind,source="$HOME/rag-tei/models",target=/data \
   ghcr.io/huggingface/text-embeddings-inference:cpu-1.8 \
   --model-id /data/nomic-embed-text-v1.5
 ```
+If you want to run container with logs replace `-d` with `--rm`.
 
 ## Roadmap
 - Add Kustomize/Helm manifests under `deploy/k8s/` with Secrets, PVCs, and Ingress.
