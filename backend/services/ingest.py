@@ -4,13 +4,39 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from services.vector_store import vector_store
 from services.models import PdfIngestion
 from services.db import get_session
-from concurrent.futures import ThreadPoolExecutor
 import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
 PDF_DIR = os.getenv("PDF_DIR", "pdfs/")
-executor = ThreadPoolExecutor(max_workers=2)
+ASYNC_TIMEOUT_SECONDS = int(os.getenv("INGEST_ADD_DOCS_TIMEOUT", "300"))
+
+async def add_embeddings_with_timeout(vector_store, chunks, timeout: int = ASYNC_TIMEOUT_SECONDS) -> None:
+    """Run vector_store.add_documents in a background thread with a timeout.
+
+    If the operation exceeds the timeout, proceed without cancelling it; it
+    continues to run in the background, and completion/failure is logged.
+    """
+    logger.info("Adding embeddings to Supabase vector store...")
+
+    task = asyncio.create_task(asyncio.to_thread(vector_store.add_documents, chunks))
+    try:
+        await asyncio.wait_for(asyncio.shield(task), timeout=timeout)
+        logger.info("Successfully added embeddings to Supabase vector store.")
+    except asyncio.TimeoutError:
+        logger.warning(
+            "add_documents exceeded %s seconds; proceeding while it completes in background.",
+            timeout,
+        )
+
+        def _done(t: asyncio.Task) -> None:
+            try:
+                t.result()
+                logger.info("Background add_documents finished successfully.")
+            except Exception as e:  # noqa: BLE001 - log any background failure
+                logger.exception("Background add_documents failed: %s", e)
+
+        task.add_done_callback(_done)
 
 async def ingest_pdf(file_path: str) -> int:
     logger.info("Starting PDF ingestion.")
@@ -26,10 +52,8 @@ async def ingest_pdf(file_path: str) -> int:
     chunks = splitter.split_documents(docs)
     logger.info(f"Split into {len(chunks)} chunks.")
 
-    # 1) Add embeddings to Supabase vector store
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(executor, vector_store.add_documents, chunks)
-    logger.info("Successfully added embeddings to Supabase vector store.")
+    # 1) Add embeddings to Supabase vector store with timeout protection
+    await add_embeddings_with_timeout(vector_store, chunks)
 
     # 2) Record ingestion metadata in Postgres
     filename = os.path.basename(file_path)
