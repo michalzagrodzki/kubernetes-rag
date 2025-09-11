@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # Optional: direct embeddings to an OpenAI-compatible base URL (e.g., Docker Desktop model-runner)
     embeddings_base_url: str | None = Field(None, env="EMBEDDINGS_BASE_URL")
 
+    # TEI embeddings service
+    tei_base_url: str = Field("http://localhost:7070", env="TEI_BASE_URL")
+
     # RAG params
     top_k: int = Field(5, env="TOP_K")
 
@@ -28,6 +31,9 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = Field("", env="POSTGRES_PASSWORD")
     POSTGRES_DB: str      = Field("", env="POSTGRES_DB")
     POSTGRES_URL: str = Field("", env="POSTGRES_URL")
+
+    # PGVector
+    pgvector_dim: int = Field(768, env="PGVECTOR_DIM")
 
     class Config:
         env_file = ".env"

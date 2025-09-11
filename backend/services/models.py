@@ -5,6 +5,7 @@ from sqlmodel import SQLModel, Field
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 from sqlalchemy import JSON, Column
 from pgvector.sqlalchemy import Vector
+from config import settings
 
 class PdfIngestion(SQLModel, table=True):
     """
@@ -44,7 +45,7 @@ class Document(SQLModel, table=True):
     # If your embedding column is PGVECTOR, SQLModel won’t know it natively,
     # so you can read it as an ARRAY of floats (or JSONB) if that’s how it’s stored.
     embedding: Optional[List[float]] = Field(
-        sa_column=Column("embedding", Vector(1536), nullable=True)
+        sa_column=Column("embedding", Vector(settings.pgvector_dim), nullable=True)
     )
     meta: Dict[str, Any] = Field(
         default_factory=dict,

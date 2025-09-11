@@ -17,7 +17,7 @@ supabase_client = create_client(
 #   base_url=settings.embeddings_base_url if getattr(settings, "embeddings_base_url", None) else None,
 #)
 
-embeddings = TEIEmbeddings(base_url="http://localhost:8080")
+embeddings = TEIEmbeddings(base_url=settings.tei_base_url)
 
 # 3) Now pass the client into SupabaseVectorStore
 vector_store = SupabaseVectorStore(
