@@ -1,4 +1,4 @@
-from backend.services.tei_embeddings import TEIEmbeddings
+from services.tei_embeddings import TEIEmbeddings
 from supabase import create_client
 from langchain_community.vectorstores import SupabaseVectorStore
 from langchain_openai import OpenAIEmbeddings
