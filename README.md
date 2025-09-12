@@ -28,30 +28,51 @@ This repository aims to demonstrate how to run a Retrieval-Augmented Generation 
 
 ## Build and Run (Docker)
 
-Backend (FastAPI)
+### Backend (FastAPI)
 - Build:
 ```bash
 docker build -f deploy/containers/Dockerfile.backend -t rag-backend:dev .
 ```
+- Platform note (Apple Silicon/arm64):
+  - Recommended: build natively for your host to avoid emulation.
+```bash
+docker build --platform linux/arm64 -f deploy/containers/Dockerfile.backend -t rag-backend:dev .
+```
+  - If you intentionally need an amd64 image (e.g., for an amd64-only cluster), build for amd64 and run with emulation locally.
+```bash
+docker build --platform linux/amd64 -f deploy/containers/Dockerfile.backend -t rag-backend:dev .
+docker run --rm --platform linux/amd64 -p 8000:8000 --env-file backend/.env rag-backend:dev
+```
 - Run: 
 ```bash
-docker run --rm -p 8000:8000 --env-file backend/.env rag-backend:dev
+docker run --rm -p 8000:8000 --platform linux/arm64 --env-file backend/.env rag-backend:dev
 ```
 - Env required (in `.env` or passed as `-e`): `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `POSTGRES_URL` (and optionally `OPENAI_MODEL`, `EMBEDDING_MODEL`, `SUPABASE_TABLE`, `PDF_DIR`).
 - App serves on `http://localhost:8000` (OpenAPI docs at `/docs`).
+  - CORS: backend allows common local frontend ports, including `http://localhost:8080`.
 ****
-Frontend (Vite + Nginx)
+### Frontend (Vite + Nginx)
 - Build: 
 ```bash
 docker build -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=http://localhost:8000 -t rag-frontend:dev .
 ```
+- Platform note (Apple Silicon/arm64):
+  - Recommended: build natively for your host to avoid emulation.
+```bash
+docker build --platform linux/arm64 -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=http://localhost:8000 -t rag-frontend:dev .
+```
+  - If you intentionally need an amd64 image (e.g., for an amd64-only cluster), build for amd64 and run with emulation locally.
+```bash
+docker build --platform linux/amd64 -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=http://localhost:8000 -t rag-frontend:dev .
+docker run --rm --platform linux/amd64 -p 8080:8080 rag-frontend:dev
+```
 - Run: 
 ```bash
-docker run --rm -p 8080:8080 rag-frontend:dev
+docker run --rm --platform linux/arm64 -p 8080:8080 rag-frontend:dev
 ```
 - App serves static files on `http://localhost:8080` and talks to the backend at `VITE_API_URL`.
 ****
-vLLM Embeddings (GPU)
+### vLLM Embeddings (GPU)
 - Build: 
 ```bash
 docker build -f deploy/containers/Dockerfile.vllm-embeddings -t rag-vllm-embeddings:qwen3-8b .
@@ -63,7 +84,7 @@ docker run --rm --gpus all -p 8001:8000 -v qwen-hf-cache:/data/hf-cache -e MODEL
 - Optional: add `-e HF_TOKEN=$HF_TOKEN` if the model requires Hugging Face auth.
 - API base: `http://localhost:8001/v1` (embeddings at `/embeddings`, models at `/models`).
 
-Nomic Embeddings (CPU-only):
+### Nomic Embeddings (CPU-only):
 Pull model:
 ```bash
 mkdir -p ~/Doc/W/rag-k8s/models

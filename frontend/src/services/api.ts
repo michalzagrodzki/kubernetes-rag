@@ -39,7 +39,10 @@ export const askStream = async (
   question: string,
   conversationId?: string
 ): Promise<AskStreamResult> => {
-  const res = await fetch(`${http.defaults.baseURL}/v1/query-stream`, {
+  // Build URL robustly: if baseURL is empty or same-origin, allow relative path
+  const base = (http.defaults.baseURL || "").toString().replace(/\/$/, "");
+  const url = `${base}/v1/query-stream`.replace(/^\/?\//, "/");
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

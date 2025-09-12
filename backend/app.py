@@ -45,6 +45,7 @@ origins = [
     "http://localhost:3001",
     "http://localhost:5173",   # Vite default
     "http://localhost:5174",
+    "http://localhost:8080",
     # add production URL(s) here, e.g. "https://my-frontend.com"
 ]
 
