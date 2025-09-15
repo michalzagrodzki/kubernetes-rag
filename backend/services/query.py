@@ -5,6 +5,7 @@ from openai import AsyncOpenAI
 from sqlalchemy import text
 from services.db import get_session
 from langchain_openai import OpenAIEmbeddings
+from services.tei_embeddings import TEIEmbeddings
 import openai
 from config import settings
 import logging
@@ -15,12 +16,8 @@ from starlette.concurrency import run_in_threadpool
 logger = logging.getLogger(__name__)
 
 openai.api_key = settings.openai_api_key
-embedding_model = OpenAIEmbeddings(
-    model=settings.embedding_model,
-    openai_api_key=settings.openai_api_key,
-    # Route embeddings to a custom OpenAI-compatible base if provided (e.g., Docker Desktop model-runner)
-    base_url=settings.embeddings_base_url if getattr(settings, "embeddings_base_url", None) else None,
-)
+# Use the same embeddings provider as ingestion (TEI) to match vector dimensions
+embedding_model = TEIEmbeddings(base_url=settings.tei_base_url)
 
 client = AsyncOpenAI(api_key=settings.openai_api_key)
 

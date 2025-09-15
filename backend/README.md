@@ -60,7 +60,7 @@ create extension if not exists pgcrypto; -- for gen_random_uuid()
 create table if not exists public.documents (
   id uuid primary key default gen_random_uuid(),
   content text not null,
-  embedding vector(1536),                -- must match EMBEDDING_MODEL dim
+  embedding vector(768),                -- must match EMBEDDING_MODEL dim
   metadata jsonb not null default '{}'::jsonb
 );
 create index if not exists documents_embedding_idx on public.documents using ivfflat (embedding vector_cosine_ops);
@@ -84,7 +84,7 @@ create table if not exists public.pdf_ingestion (
 );
 ```
 
-Dimension note: If you switch to a different embedding model (e.g., `text-embedding-3-small` with 1536 dims, or `-large` with 3072), update the `vector(<dims>)` size and reindex.
+Dimension note: If you switch to a different embedding model (e.g., `text-embedding-3-small` with 768 dims, or `-large` with 3072), update the `vector(<dims>)` size and reindex.
 
 ## How to Run
 1) Create and activate a virtual environment:

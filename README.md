@@ -119,7 +119,7 @@ docker pull ghcr.io/huggingface/text-embeddings-inference:1.8
 ```
 Run image:
 ```bash
-docker run -d -p 7070:80 \
+docker run --rm -p 7070:80 \
   --platform linux/amd64 \
   --mount type=bind,source="$HOME/rag-tei/models",target=/data \
   ghcr.io/huggingface/text-embeddings-inference:cpu-1.8 \
