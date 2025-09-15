@@ -51,3 +51,23 @@ class Document(SQLModel, table=True):
         default_factory=dict,
         sa_column=Column("metadata", JSONB, nullable=False),
     )
+
+class ChatHistory(SQLModel, table=True):
+    """
+    Represents a single chat turn for a conversation.
+    Uses plain SQLModel fields to avoid raw SQL usage in services.
+    """
+    __tablename__ = "chat_history"
+
+    # Primary key; assumes the table has an id column with UUID type.
+    id: PyUUID | None = Field(default_factory=uuid4, primary_key=True)
+
+    # Conversation identifier (UUID stored in DB)
+    conversation_id: PyUUID
+
+    # Question/answer content
+    question: str
+    answer: str
+
+    # Timestamp assigned by DB default; left optional here
+    created_at: datetime | None = None

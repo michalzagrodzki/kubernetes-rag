@@ -1,35 +1,33 @@
 from typing import List, Dict
-from sqlalchemy import text
+from uuid import UUID as PyUUID
+from sqlmodel import select
 from services.db import get_session
+from services.models import ChatHistory
 
 async def get_history(conversation_id: str) -> List[Dict[str, str]]:
     """
     Fetch all prior turns for this conversation, ordered by timestamp.
     """
-    sql = text("""
-        SELECT question, answer
-        FROM chat_history
-        WHERE conversation_id = :cid
-        ORDER BY created_at
-    """)
     async with get_session() as session:
-        result = await session.execute(sql, {"cid": conversation_id})
-        rows = result.fetchall()
-    # return as list of dicts for easy templating
-    return [{"question": r.question, "answer": r.answer} for r in rows]
+        stmt = (
+            select(ChatHistory.question, ChatHistory.answer)
+            .where(ChatHistory.conversation_id == PyUUID(conversation_id))
+            .order_by(ChatHistory.created_at)
+        )
+        result = await session.exec(stmt)
+        rows = result.all()
+    # rows are tuples: (question, answer)
+    return [{"question": q, "answer": a} for q, a in rows]
 
 async def append_history(conversation_id: str, question: str, answer: str) -> None:
     """
     Insert the latest Q&A turn into chat_history.
     """
-    sql = text("""
-        INSERT INTO chat_history (conversation_id, question, answer)
-        VALUES (:cid, :q, :a)
-    """)
     async with get_session() as session:
-        await session.execute(sql, {
-            "cid": conversation_id,
-            "q": question,
-            "a": answer
-        })
+        rec = ChatHistory(
+            conversation_id=PyUUID(conversation_id),
+            question=question,
+            answer=answer,
+        )
+        session.add(rec)
         await session.commit()

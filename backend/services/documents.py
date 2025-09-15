@@ -23,13 +23,9 @@ async def list_documents(skip: int = 0, limit: int = 10) -> List[Dict[str, Any]]
                 select(Document)
                 .offset(skip)
                 .limit(limit)
-                .execution_options(autocommit=True)
             )
             result = await session.execute(stmt)
             docs = result.scalars().all()
-            logger.debug(f"Waiting for commit")
-            await session.commit()
-            logger.debug(f"Commit finished")
             documents_list: List[Dict[str, Any]] = []
             for doc in docs:
                 logger.debug(f"Type of embedding: {type(doc.embedding)}")
