@@ -5,6 +5,7 @@ from services.vector_store import vector_store
 from services.models import PdfIngestion
 from services.db import get_session
 import asyncio
+from starlette.concurrency import run_in_threadpool
 import logging
 
 logger = logging.getLogger(__name__)
@@ -59,11 +60,13 @@ async def ingest_pdf(file_path: str) -> int:
     filename = os.path.basename(file_path)
     metadata = {"chunks": len(chunks), "path": file_path}
 
-    # Use the async session to create a Document row
-    async with get_session() as session:
-        doc = PdfIngestion(filename=filename, meta=metadata)
-        session.add(doc)
-        await session.commit()
-        logger.info("Inserted ingestion record into database.")
+    # Use sync DB session in a thread so we don't block the loop
+    def _insert_ingestion() -> None:
+        with get_session() as session:
+            doc = PdfIngestion(filename=filename, meta=metadata)
+            session.add(doc)
+            session.commit()
+    await run_in_threadpool(_insert_ingestion)
+    logger.info("Inserted ingestion record into database.")
 
     return len(chunks)

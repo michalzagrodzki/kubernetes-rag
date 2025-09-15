@@ -17,6 +17,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 import logging
 from fastapi import Query
 from services.query import answer_question, stream_answer
+import asyncio
+from starlette.concurrency import run_in_threadpool
 
 logging.basicConfig(
     level=logging.DEBUG,  # or DEBUG
@@ -28,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Application startup: initialize database
-    await init_db()
+    # Application startup: initialize database (sync)
+    init_db()
     yield
     # Application shutdown: (no actions needed currently)
 
@@ -69,10 +71,13 @@ router_v1 = APIRouter(prefix="/v1")
 @router_v1.get("/test-db")
 async def test_db():
     try:
-        async with get_session() as session:
-            logger.debug("Running DB health check: SELECT 1")
-            result = await session.exec(text("SELECT 1"))
-            return {"status": "ok", "result": result.scalar()}
+        logger.debug("Running DB health check: SELECT 1")
+        def _check():
+            with get_session() as session:
+                result = session.execute(text("SELECT 1"))
+                return result.scalar()
+        value = await asyncio.wait_for(run_in_threadpool(_check), timeout=10.0)
+        return {"status": "ok", "result": value}
     except Exception as e:
         logger.exception("DB health check failed")
         return {"status": "error", "detail": str(e)}
@@ -116,11 +121,13 @@ async def get_all_documents(skip: int = Query(0, ge=0), limit: int = Query(10, g
     """
     try:
         logger.info(f"Fetching documents: skip={skip}, limit={limit}")
-        docs = await list_documents(skip=skip, limit=limit)
+        docs = await run_in_threadpool(list_documents, skip=skip, limit=limit)
         logger.info(f"Received docs from list_documents")
         return JSONResponse(content=docs)
 
     except Exception as e:
+        if isinstance(e, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Database request timed out")
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
 @router_v1.post(
@@ -151,7 +158,7 @@ async def query_stream(req: QueryRequest):
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid conversation_id format (must be UUID)")
 
-    history = await get_history(conversation_id)
+    history = await run_in_threadpool(get_history, conversation_id)
 
     # 2) stream tokens from OpenAI
     async def event_generator():
@@ -159,7 +166,7 @@ async def query_stream(req: QueryRequest):
         async for token in stream_answer(req.question, history):
             full_answer += token
             yield token
-        await append_history(conversation_id, req.question, full_answer)
+        await run_in_threadpool(append_history, conversation_id, req.question, full_answer)
 
     return StreamingResponse(
         event_generator(),
@@ -175,7 +182,7 @@ async def query_stream(req: QueryRequest):
     description="Returns an array of { question, answer } for the given conversation_id"
 )
 async def read_history(conversation_id: str):
-    history = await get_history(conversation_id)
+    history = await run_in_threadpool(get_history, conversation_id)
     return JSONResponse(content=history)
 
 app.include_router(router_v1)

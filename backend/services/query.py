@@ -9,6 +9,7 @@ import openai
 from config import settings
 import logging
 import asyncio
+from starlette.concurrency import run_in_threadpool
 
 
 logger = logging.getLogger(__name__)
@@ -29,18 +30,25 @@ def to_pgvector_literal(vec: list[float]) -> str:
 async def retrieve_top_docs(question: str, k: int = 5) -> List[Dict[str,Any]]:
     q_vec = embedding_model.embed_query(question)
     ql = to_pgvector_literal(q_vec)
-    sql = text("""
+    sql = text(
+        """
         SELECT id, content, metadata, 1 - (embedding <=> :q) AS similarity
         FROM documents
         ORDER BY embedding <=> :q
         LIMIT :k
-    """)
-    async with get_session() as session:
-        try:
-            res = await asyncio.wait_for(session.execute(sql, {"q": ql, "k": k}), timeout=10.0)
-        except asyncio.TimeoutError:
-            raise HTTPException(504, "DB query timed out")
-    rows = res.fetchall()
+        """
+    )
+
+    def _run_query():
+        with get_session() as session:
+            res = session.execute(sql, {"q": ql, "k": k})
+            return res.fetchall()
+
+    try:
+        rows = await asyncio.wait_for(run_in_threadpool(_run_query), timeout=10.0)
+    except asyncio.TimeoutError:
+        raise HTTPException(504, "DB query timed out")
+
     return [
         {"content": r.content, "metadata": r.metadata, "similarity": float(r.similarity)}
         for r in rows
@@ -106,16 +114,16 @@ async def answer_question(question: str) -> Tuple[str, List[Dict[str, Any]]]:
     q_vector_str = to_pgvector_literal(q_vector)
 
     logger.info("✅ Starting to fetch documents from DB")
-    async with get_session() as session:
-        try:
-            result = await asyncio.wait_for(
-                session.execute(sql, {"q": q_vector_str}),
-                timeout=10.0
-            )
-            rows = result.fetchall()
-        except asyncio.TimeoutError:
-            logger.error("Database query timed out — connection may be stale.")
-            raise HTTPException(status_code=504, detail="Database query timed out.")
+    def _run_query2():
+        with get_session() as session:
+            result = session.execute(sql, {"q": q_vector_str})
+            return result.fetchall()
+
+    try:
+        rows = await asyncio.wait_for(run_in_threadpool(_run_query2), timeout=10.0)
+    except asyncio.TimeoutError:
+        logger.error("Database query timed out — connection may be stale.")
+        raise HTTPException(status_code=504, detail="Database query timed out.")
 
     logger.info("✅ Fetched documents from DB")
 

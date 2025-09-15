@@ -1,66 +1,46 @@
-from sqlalchemy.pool import NullPool
-import ssl
-import uuid
-import orjson
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+import os
+from contextlib import contextmanager
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlmodel import Session as SQLModelSession
+from sqlalchemy.pool import QueuePool
 from dotenv import load_dotenv
 from config import settings
-from fastapi.concurrency import asynccontextmanager
 
 load_dotenv()
 
-ssl_context = ssl.create_default_context()
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
+def _build_sync_dsn(raw: str) -> str:
+    dsn = raw or ""
+    if "+asyncpg" in dsn:
+        dsn = dsn.replace("+asyncpg", "+psycopg")
+    elif "+psycopg" not in dsn and dsn.startswith("postgresql"):
+        dsn = dsn.replace("postgresql://", "postgresql+psycopg://", 1)
+    if "sslmode=" not in dsn:
+        sep = "&" if "?" in dsn else "?"
+        dsn = f"{dsn}{sep}sslmode=require"
+    return dsn
 
-# Wrap orjson.dumps so that it returns a str (decode bytes → str)
-def orjson_serializer(obj: object) -> str:
-    # orjson.dumps(obj) returns bytes; decode to utf-8 string
-    return orjson.dumps(obj).decode("utf-8")
+SYNC_DSN = _build_sync_dsn(settings.POSTGRES_URL)
 
-# We can use orjson.loads directly, since it accepts bytes or str and returns Python objects
-def orjson_deserializer(s: str | bytes) -> object:
-    return orjson.loads(s)
-
-engine: AsyncEngine = create_async_engine(
-    settings.POSTGRES_URL,
-    json_serializer=orjson_serializer,
-    json_deserializer=orjson_deserializer,
-    echo=False,
+engine = create_engine(
+    SYNC_DSN,
+    poolclass=QueuePool,
+    pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
+    max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "5")),
+    pool_pre_ping=True,
     pool_recycle=1800,
     future=True,
-    pool_pre_ping=True,
-    poolclass=NullPool,
-    connect_args={
-        "ssl": ssl_context,
-        "prepared_statement_name_func": lambda:  f"__asyncpg_{uuid.uuid4()}__",
-        "statement_cache_size": 0,
-        "prepared_statement_cache_size": 0,
-        },
 )
 
-async_session_maker = sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+SessionLocal = sessionmaker(bind=engine, class_=SQLModelSession, expire_on_commit=False)
 
-async def init_db() -> None:
-    """
-    Create any missing tables in Supabase Postgres.
-    (For production, you’d probably use Alembic instead of this auto-sync.)
-    """
-    from services.models import PdfIngestion  # import so SQLModel.metadata knows about it
+def init_db() -> None:
+    return None
 
-    #async with engine.begin() as conn:
-    #    await conn.run_sync(SQLModel.metadata.create_all)
-
-@asynccontextmanager
-async def get_session() -> AsyncSession: # type: ignore
-    session: AsyncSession = async_session_maker()
+@contextmanager
+def get_session() -> SQLModelSession:  # type: ignore
+    session: SQLModelSession = SessionLocal()
     try:
         yield session
     finally:
-        await session.close()
+        session.close()

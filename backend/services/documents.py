@@ -6,25 +6,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def list_documents(skip: int = 0, limit: int = 10) -> List[Dict[str, Any]]:
+def list_documents(skip: int = 0, limit: int = 10) -> List[Dict[str, Any]]:
     """
     Open a single AsyncSession, SELECT * FROM documents, and return
     a list of plain dicts (id, content, embedding, metadata).
     """
     try:
-        async with get_session() as session:
-
-            if session is None:
-                raise RuntimeError("Could not acquire database session")
-            logger.debug(f"Starting to fetch documents")
-            
-            # 1) Run a simple SELECT * FROM documents
-            stmt = (
-                select(Document)
-                .offset(skip)
-                .limit(limit)
-            )
-            result = await session.exec(stmt)
+        with get_session() as session:
+            logger.debug("Starting to fetch documents")
+            stmt = select(Document).offset(skip).limit(limit)
+            result = session.exec(stmt)
             docs = result.all()
             logger.debug(f"Fetched {len(docs)} documents from DB")
             documents_list: List[Dict[str, Any]] = []
@@ -36,7 +27,6 @@ async def list_documents(skip: int = 0, limit: int = 10) -> List[Dict[str, Any]]
                     "embedding": safe_embedding(doc.embedding),
                     "metadata": doc.meta,
                 })
-
             return documents_list
     except Exception as e:
         logger.error(f"Database error in list_documents: {e}")
