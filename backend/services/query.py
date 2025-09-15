@@ -28,7 +28,8 @@ def to_pgvector_literal(vec: list[float]) -> str:
     return f"[{','.join(f'{x:.6f}' for x in vec)}]"
 
 async def retrieve_top_docs(question: str, k: int = 5) -> List[Dict[str,Any]]:
-    q_vec = embedding_model.embed_query(question)
+    # Offload sync embedding to a thread
+    q_vec = await run_in_threadpool(embedding_model.embed_query, question)
     ql = to_pgvector_literal(q_vec)
     sql = text(
         """
@@ -84,11 +85,14 @@ async def stream_answer(
         f"Answer:"
     )
 
-    # call OpenAI in streaming mode
-    stream = await client.chat.completions.create(
-        model=settings.openai_model,
-        messages=[{"role":"user","content":prompt}],
-        stream=True
+    # call OpenAI in streaming mode with handshake timeout
+    stream = await asyncio.wait_for(
+        client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[{"role":"user","content":prompt}],
+            stream=True
+        ),
+        timeout=30.0,
     )
 
     full_answer = ""
@@ -100,8 +104,8 @@ async def stream_answer(
 
 async def answer_question(question: str) -> Tuple[str, List[Dict[str, Any]]]:
     logger.info("✅ Starting to embed query")
-    # Step 1: Embed the question
-    q_vector = embedding_model.embed_query(question)
+    # Step 1: Embed the question (offload to thread)
+    q_vector = await run_in_threadpool(embedding_model.embed_query, question)
     logger.info("✅ Finished embedding query")
     # Step 2: Query top-5 similar documents from Supabase
     sql = text("""
