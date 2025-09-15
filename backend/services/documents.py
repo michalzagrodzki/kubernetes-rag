@@ -24,8 +24,9 @@ async def list_documents(skip: int = 0, limit: int = 10) -> List[Dict[str, Any]]
                 .offset(skip)
                 .limit(limit)
             )
-            result = await session.execute(stmt)
-            docs = result.scalars().all()
+            result = await session.exec(stmt)
+            docs = result.all()
+            logger.debug(f"Fetched {len(docs)} documents from DB")
             documents_list: List[Dict[str, Any]] = []
             for doc in docs:
                 logger.debug(f"Type of embedding: {type(doc.embedding)}")
