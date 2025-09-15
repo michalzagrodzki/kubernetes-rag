@@ -29,6 +29,7 @@ This repository aims to demonstrate how to run a Retrieval-Augmented Generation 
 ## Build and Run (Docker)
 
 ### Backend (FastAPI)
+
 - Build:
 ```bash
 docker build -f deploy/containers/Dockerfile.backend -t rag-backend:dev .
@@ -51,7 +52,9 @@ docker run --rm -p 8000:8000 --platform linux/arm64 --env-file backend/.env rag-
 - App serves on `http://localhost:8000` (OpenAPI docs at `/docs`).
   - CORS: backend allows common local frontend ports, including `http://localhost:8080`.
 ****
+
 ### Frontend (Vite + Nginx)
+
 - Build: 
 ```bash
 docker build -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=http://localhost:8000 -t rag-frontend:dev .
@@ -72,7 +75,9 @@ docker run --rm --platform linux/arm64 -p 8080:8080 rag-frontend:dev
 ```
 - App serves static files on `http://localhost:8080` and talks to the backend at `VITE_API_URL`.
 ****
+
 ### vLLM Embeddings (GPU)
+
 - Build: 
 ```bash
 docker build -f deploy/containers/Dockerfile.vllm-embeddings -t rag-vllm-embeddings:qwen3-8b .
