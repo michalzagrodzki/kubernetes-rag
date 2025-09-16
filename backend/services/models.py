@@ -59,15 +59,8 @@ class ChatHistory(SQLModel, table=True):
     """
     __tablename__ = "chat_history"
 
-    # Primary key; assumes the table has an id column with UUID type.
-    id: PyUUID | None = Field(default_factory=uuid4, primary_key=True)
-
-    # Conversation identifier (UUID stored in DB)
+    id: int | None = Field(default=None, primary_key=True)
     conversation_id: PyUUID
-
-    # Question/answer content
     question: str
     answer: str
-
-    # Timestamp assigned by DB default; left optional here
-    created_at: datetime | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
