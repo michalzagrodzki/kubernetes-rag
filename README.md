@@ -92,8 +92,8 @@ docker run --rm --gpus all -p 8001:8000 -v qwen-hf-cache:/data/hf-cache -e MODEL
 ### Nomic Embeddings (CPU-only):
 Pull model:
 ```bash
-mkdir -p ~/Doc/W/rag-k8s/models
-cd ~/Doc/W/rag-k8s/models
+mkdir -p ~/rag-tei/models
+cd ~/rag-tei/models
 
 git lfs install
 git clone https://huggingface.co/nomic-ai/nomic-embed-text-v1.5
