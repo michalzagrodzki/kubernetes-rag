@@ -1,0 +1,14 @@
+FROM vllm/vllm-openai:v0.10.2-aarch64
+
+# Caches and explicit device selection
+# NOTE: Setting VLLM_TARGET_DEVICE=cpu ensures vLLM doesn't try to infer CUDA/ROCm/MPS
+# during argument parser initialization (which can crash on arm64 without GPUs).
+ENV HF_HOME=/root/.cache/huggingface \
+  VLLM_TARGET_DEVICE=cpu \
+  VLLM_LOGGING_LEVEL=DEBUG \
+  VLLM_NO_USAGE_STATS=1
+
+EXPOSE 8000
+
+# Default to your local model path mounted at /weights
+CMD [ "--host", "0.0.0.0", "--port", "8000", "--model", "/weights", "--device", "cpu", "--dtype", "float32", "--max-model-len", "4096" ]

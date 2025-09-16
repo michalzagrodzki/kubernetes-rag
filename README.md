@@ -115,7 +115,6 @@ docker pull ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
 
 # GPU (Ampere-80 like A100):
 docker pull ghcr.io/huggingface/text-embeddings-inference:1.8
-
 ```
 Run image:
 ```bash
@@ -127,6 +126,37 @@ docker run --rm -p 7070:80 \
 ```
 If you want to run container with logs replace `-d` with `--rm`.
 
+### LLama.cpp Chat (CPU-only):
+Pull model:
+```bash
+mkdir -p ~/rag-tei/models
+cd ~/rag-tei/models
+
+git lfs install
+git clone https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF
+# (optional but safe) ensure all LFS files are present
+cd Qwen2.5-1.5B-Instruct-GGUF && git lfs pull && cd ..
+```
+
+Pull image:
+```bash
+docker pull ghcr.io/ggml-org/llama.cpp:full
+```
+
+Run image:
+```bash
+docker run --rm \
+  --name llm \
+  -p 8081:8080 \
+  --platform linux/arm64 \
+  -v "$HOME/rag-chat/models/Qwen2.5-1.5B-Instruct-GGUF":/models \
+  ghcr.io/ggml-org/llama.cpp:full \
+  llama-server \
+    -m /models/Qwen2.5-1.5B-Instruct-Q6_K_L.gguf \
+    --host 0.0.0.0 --port 8080 \
+    -c 4096 -np 2 -t 6
+```
+If you want to run container with logs replace `-d` with `--rm`.
 ## Roadmap
 - Add Kustomize/Helm manifests under `deploy/k8s/` with Secrets, PVCs, and Ingress.
 - Horizontal Pod Autoscaler, PodDisruptionBudgets, and readiness/liveness probes.

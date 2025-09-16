@@ -4,7 +4,6 @@ from fastapi import HTTPException
 from openai import AsyncOpenAI
 from sqlalchemy import text
 from services.db import get_session
-from langchain_openai import OpenAIEmbeddings
 from services.tei_embeddings import TEIEmbeddings
 import openai
 from config import settings

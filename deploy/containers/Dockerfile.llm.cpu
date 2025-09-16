@@ -1,0 +1,35 @@
+FROM --platform=$BUILDPLATFORM python:3.10-slim
+
+# Aim: CPU-only OpenAI-compatible vLLM server. This image targets amd64,
+# which runs reliably on Apple Silicon via emulation.
+
+ARG TARGETARCH
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONUNBUFFERED=1 \
+  PIP_NO_CACHE_DIR=1 \
+  HF_HOME=/root/.cache/huggingface \
+  TRANSFORMERS_CACHE=/root/.cache/huggingface \
+  VLLM_NO_USAGE_STATS=1 \
+  VLLM_LOGGING_LEVEL=INFO \
+  VLLM_TARGET_DEVICE=cpu
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  git git-lfs build-essential \
+  && rm -rf /var/lib/apt/lists/* \
+  && git lfs install
+
+RUN pip install --upgrade pip setuptools wheel && \
+  pip install --no-cache-dir \
+  vllm-cpu \
+  transformers>=4.42 \
+  accelerate>=0.29 \
+  huggingface_hub>=0.22 \
+  uvicorn>=0.22
+
+EXPOSE 8000
+
+# Entrypoint to vLLM OpenAI server; arguments are provided via CMD
+ENTRYPOINT ["python", "-m", "vllm.entrypoints.openai.api_server"]
+CMD ["--host", "0.0.0.0", "--port", "8000", "--model", "/weights", "--device", "cpu", "--dtype", "float32", "--max-model-len", "4096"]
+
