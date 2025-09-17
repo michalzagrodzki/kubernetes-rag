@@ -76,19 +76,6 @@ docker run --rm --platform linux/arm64 -p 8080:8080 rag-frontend:dev
 - App serves static files on `http://localhost:8080` and talks to the backend at `VITE_API_URL`.
 ****
 
-### vLLM Embeddings (GPU)
-
-- Build: 
-```bash
-docker build -f deploy/containers/Dockerfile.vllm-embeddings -t rag-vllm-embeddings:qwen3-8b .
-```
-- Run (requires NVIDIA GPU and drivers):
-```bash
-docker run --rm --gpus all -p 8001:8000 -v qwen-hf-cache:/data/hf-cache -e MODEL_ID=Qwen/Qwen3-Embedding-8B -e TENSOR_PARALLEL=1 -e GPU_MEM_UTIL=0.9 -e MAX_MODEL_LEN=8192 -e PREFETCH=1 rag-vllm-embeddings:qwen3-8b
-```
-- Optional: add `-e HF_TOKEN=$HF_TOKEN` if the model requires Hugging Face auth.
-- API base: `http://localhost:8001/v1` (embeddings at `/embeddings`, models at `/models`).
-
 ### Nomic Embeddings (CPU-only):
 Pull model:
 ```bash
@@ -129,8 +116,8 @@ If you want to run container with logs replace `-d` with `--rm`.
 ### LLama.cpp Chat (CPU-only):
 Pull model:
 ```bash
-mkdir -p ~/rag-tei/models
-cd ~/rag-tei/models
+mkdir -p ~/rag-chat/models
+cd ~/rag-chat/models
 
 git lfs install
 git clone https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF
@@ -140,23 +127,20 @@ cd Qwen2.5-1.5B-Instruct-GGUF && git lfs pull && cd ..
 
 Pull image:
 ```bash
-docker pull ghcr.io/ggml-org/llama.cpp:full
+docker pull ghcr.io/abetlen/llama-cpp-python:v0.3.5@sha256:632f1037e897bd53970f9ad11d886625f0c90e362e92b244fbbbaa816b2aafa6
 ```
 
 Run image:
 ```bash
 docker run --rm \
   --name llm \
-  -p 8081:8080 \
-  --platform linux/arm64 \
-  -v "$HOME/rag-chat/models/Qwen2.5-1.5B-Instruct-GGUF":/models \
-  ghcr.io/ggml-org/llama.cpp:full \
-  llama-server \
-    -m /models/Qwen2.5-1.5B-Instruct-Q6_K_L.gguf \
-    --host 0.0.0.0 --port 8080 \
-    -c 4096 -np 2 -t 6
+  -p 8081:8000 \
+  -v "$HOME/rag-chat/models/Qwen2.5-1.5B-Instruct-GGUF:/models" \
+  -e MODEL=/models/qwen2.5-1.5b-instruct-q6_k.gguf \
+  ghcr.io/abetlen/llama-cpp-python:v0.3.5@sha256:632f1037e897bd53970f9ad11d886625f0c90e362e92b244fbbbaa816b2aafa6
 ```
 If you want to run container with logs replace `-d` with `--rm`.
+
 ## Roadmap
 - Add Kustomize/Helm manifests under `deploy/k8s/` with Secrets, PVCs, and Ingress.
 - Horizontal Pod Autoscaler, PodDisruptionBudgets, and readiness/liveness probes.
