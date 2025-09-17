@@ -13,9 +13,14 @@ output "frontend_service" {
   description = "Frontend service name"
 }
 
-output "vllm_service" {
-  value       = kubernetes_service_v1.vllm.metadata[0].name
-  description = "vLLM service name"
+output "llm_service" {
+  value       = kubernetes_service_v1.llm.metadata[0].name
+  description = "Local LLM (llama.cpp) service name"
+}
+
+output "tei_service" {
+  value       = kubernetes_service_v1.tei.metadata[0].name
+  description = "TEI embeddings service name"
 }
 
 output "ingress_hosts" {
@@ -25,4 +30,3 @@ output "ingress_hosts" {
   }
   description = "Ingress hostnames"
 }
-

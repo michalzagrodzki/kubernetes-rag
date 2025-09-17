@@ -19,25 +19,43 @@ variable "namespace" {
 variable "backend_image" {
   description = "Full image ref for backend"
   type        = string
-  default     = "ghcr.io/example/rag-backend:latest"
+  default     = "rag-backend:dev"
 }
 
 variable "frontend_image" {
   description = "Full image ref for frontend"
   type        = string
-  default     = "ghcr.io/example/rag-frontend:latest"
+  default     = "rag-frontend:dev"
 }
 
-variable "vllm_image" {
-  description = "Image for vLLM OpenAI server"
+variable "llm_image" {
+  description = "Image for local LLM (llama.cpp based)"
   type        = string
-  default     = "vllm/vllm-openai:latest"
+  default     = "rag-llm:qwen2.5-1.5b"
 }
 
-variable "vllm_model" {
-  description = "HuggingFace model id for vLLM"
+variable "local_llm_model" {
+  description = "Model id/name for local LLM server"
   type        = string
-  default     = "meta-llama/Llama-3.1-8B-Instruct"
+  default     = "qwen2.5-1.5b-instruct"
+}
+
+variable "local_llm_streaming" {
+  description = "Enable upstream streaming from local LLM"
+  type        = bool
+  default     = false
+}
+
+variable "tei_image" {
+  description = "Image for text-embeddings-inference (TEI)"
+  type        = string
+  default     = "ghcr.io/huggingface/text-embeddings-inference:cpu-1.8"
+}
+
+variable "tei_model_id" {
+  description = "Model id/path for TEI (e.g., nomic-ai/nomic-embed-text-v1.5)"
+  type        = string
+  default     = "nomic-ai/nomic-embed-text-v1.5"
 }
 
 variable "frontend_host" {
@@ -78,38 +96,10 @@ variable "frontend_replicas" {
   default = 2
 }
 
-variable "vllm_replicas" {
-  type    = number
-  default = 1
-}
-
-variable "vllm_gpu_count" {
-  description = "Number of GPUs per vLLM pod"
+variable "llm_replicas" {
+  description = "Replicas for local LLM server"
   type        = number
   default     = 1
-}
-
-variable "vllm_tensor_parallel_size" {
-  description = "Tensor parallel size for vLLM"
-  type        = number
-  default     = 1
-}
-
-variable "vllm_node_selector" {
-  description = "Node selector for vLLM pods"
-  type        = map(string)
-  default     = {}
-}
-
-variable "vllm_tolerations" {
-  description = "Tolerations for vLLM pods"
-  type = list(object({
-    key      = string
-    operator = string
-    value    = optional(string)
-    effect   = optional(string)
-  }))
-  default = []
 }
 
 variable "storage_class_name" {
@@ -159,6 +149,33 @@ variable "postgres_url" {
   sensitive   = true
 }
 
+variable "postgres_server" {
+  type        = string
+  description = "Postgres server hostname"
+}
+
+variable "postgres_port" {
+  type        = number
+  description = "Postgres server port"
+  default     = 6543
+}
+
+variable "postgres_user" {
+  type        = string
+  description = "Postgres username"
+}
+
+variable "postgres_password" {
+  type        = string
+  description = "Postgres password"
+  sensitive   = true
+}
+
+variable "postgres_db" {
+  type        = string
+  description = "Postgres database name"
+}
+
 variable "openai_api_key" {
   type        = string
   description = "OpenAI API key (or dummy when using vLLM)"
@@ -182,4 +199,3 @@ variable "top_k" {
   description = "Top K documents to retrieve"
   default     = 5
 }
-

@@ -13,6 +13,11 @@ resource "kubernetes_secret_v1" "rag_secrets" {
     SUPABASE_URL     = var.supabase_url
     SUPABASE_KEY     = var.supabase_key
     POSTGRES_URL     = var.postgres_url
+    POSTGRES_SERVER  = var.postgres_server
+    POSTGRES_PORT    = tostring(var.postgres_port)
+    POSTGRES_USER    = var.postgres_user
+    POSTGRES_PASSWORD = var.postgres_password
+    POSTGRES_DB      = var.postgres_db
     OPENAI_API_KEY   = var.openai_api_key
     OPENAI_MODEL     = var.openai_model
     EMBEDDING_MODEL  = var.embedding_model
@@ -30,8 +35,11 @@ resource "kubernetes_config_map_v1" "rag_config" {
     TOP_K           = tostring(var.top_k)
     PDF_DIR         = var.pdf_dir
     CORS_ORIGINS    = var.cors_origins
-    # Prepare for vLLM usage via OpenAI-compatible API inside cluster
-    OPENAI_BASE_URL = "http://vllm:8000/v1"
+    # Backend runtime configuration for in-cluster services
+    TEI_BASE_URL         = "http://tei:80"
+    LOCAL_LLM_BASE_URL   = "http://llm:8000/v1"
+    LOCAL_LLM_MODEL      = var.local_llm_model
+    LOCAL_LLM_STREAMING  = tostring(var.local_llm_streaming)
   }
 }
 
@@ -212,65 +220,44 @@ resource "kubernetes_service_v1" "backend" {
   }
 }
 
-resource "kubernetes_deployment_v1" "vllm" {
+resource "kubernetes_deployment_v1" "llm" {
   metadata {
-    name      = "vllm"
+    name      = "llm"
     namespace = kubernetes_namespace_v1.ns.metadata[0].name
     labels = {
-      app = "vllm"
+      app = "llm"
     }
   }
   spec {
-    replicas = var.vllm_replicas
+    replicas = var.llm_replicas
     selector {
       match_labels = {
-        app = "vllm"
+        app = "llm"
       }
     }
     template {
       metadata {
         labels = {
-          app = "vllm"
+          app = "llm"
         }
       }
       spec {
-        node_selector = var.vllm_node_selector
-        dynamic "toleration" {
-          for_each = var.vllm_tolerations
-          content {
-            key      = toleration.value.key
-            operator = toleration.value.operator
-            value    = lookup(toleration.value, "value", null)
-            effect   = lookup(toleration.value, "effect", null)
-          }
-        }
         container {
-          name  = "vllm"
-          image = var.vllm_image
+          name  = "llm"
+          image = var.llm_image
           image_pull_policy = "IfNotPresent"
 
           port {
             container_port = 8000
           }
 
-          command = ["python", "-m", "vllm.entrypoints.openai.api_server"]
-          args = [
-            "--model", var.vllm_model,
-            "--host", "0.0.0.0",
-            "--port", "8000",
-            "--tensor-parallel-size", tostring(var.vllm_tensor_parallel_size)
-          ]
-
           resources {
-            limits = {
-              # Adjust CPU/memory per model size
-              cpu             = "2"
-              memory          = "16Gi"
-              "nvidia.com/gpu" = tostring(var.vllm_gpu_count)
-            }
             requests = {
-              cpu    = "1"
-              memory = "8Gi"
+              cpu    = "500m"
+              memory = "1Gi"
+            }
+            limits = {
+              memory = "4Gi"
             }
           }
         }
@@ -279,22 +266,92 @@ resource "kubernetes_deployment_v1" "vllm" {
   }
 }
 
-resource "kubernetes_service_v1" "vllm" {
+resource "kubernetes_service_v1" "llm" {
   metadata {
-    name      = "vllm"
+    name      = "llm"
     namespace = kubernetes_namespace_v1.ns.metadata[0].name
     labels = {
-      app = "vllm"
+      app = "llm"
     }
   }
   spec {
     selector = {
-      app = "vllm"
+      app = "llm"
     }
     port {
       name        = "http"
       port        = 8000
       target_port = 8000
+    }
+  }
+}
+
+resource "kubernetes_deployment_v1" "tei" {
+  metadata {
+    name      = "tei"
+    namespace = kubernetes_namespace_v1.ns.metadata[0].name
+    labels = {
+      app = "tei"
+    }
+  }
+  spec {
+    replicas = 1
+    selector {
+      match_labels = {
+        app = "tei"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app = "tei"
+        }
+      }
+      spec {
+        container {
+          name  = "tei"
+          image = var.tei_image
+          image_pull_policy = "IfNotPresent"
+
+          port {
+            container_port = 80
+          }
+
+          args = [
+            "--model-id", var.tei_model_id
+          ]
+
+          resources {
+            requests = {
+              cpu    = "500m"
+              memory = "1Gi"
+            }
+            limits = {
+              memory = "4Gi"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service_v1" "tei" {
+  metadata {
+    name      = "tei"
+    namespace = kubernetes_namespace_v1.ns.metadata[0].name
+    labels = {
+      app = "tei"
+    }
+  }
+  spec {
+    selector = {
+      app = "tei"
+    }
+    port {
+      name        = "http"
+      port        = 80
+      target_port = 80
     }
   }
 }
