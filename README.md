@@ -42,11 +42,11 @@ docker build --platform linux/arm64 -f deploy/containers/Dockerfile.backend -t r
   - If you intentionally need an amd64 image (e.g., for an amd64-only cluster), build for amd64 and run with emulation locally.
 ```bash
 docker build --platform linux/amd64 -f deploy/containers/Dockerfile.backend -t rag-backend:dev .
-docker run --rm --platform linux/amd64 -p 8000:8000 --env-file backend/.env rag-backend:dev
+docker run --rm --name backend_dev --platform linux/amd64 -p 8000:8000 --env-file backend/.env rag-backend:dev
 ```
 - Run: 
 ```bash
-docker run --rm -p 8000:8000 --platform linux/arm64 --env-file backend/.env rag-backend:dev
+docker run --rm --name backend_dev -p 8000:8000 --platform linux/arm64 --env-file backend/.env rag-backend:dev
 ```
 - Env required (in `.env` or passed as `-e`): `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `POSTGRES_URL` (and optionally `OPENAI_MODEL`, `EMBEDDING_MODEL`, `SUPABASE_TABLE`, `PDF_DIR`).
 - App serves on `http://localhost:8000` (OpenAPI docs at `/docs`).
@@ -67,11 +67,11 @@ docker build --platform linux/arm64 -f deploy/containers/Dockerfile.frontend --b
   - If you intentionally need an amd64 image (e.g., for an amd64-only cluster), build for amd64 and run with emulation locally.
 ```bash
 docker build --platform linux/amd64 -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=http://localhost:8000 -t rag-frontend:dev .
-docker run --rm --platform linux/amd64 -p 8080:8080 rag-frontend:dev
+docker run --rm --name frontend_dev --platform linux/amd64 -p 8080:8080 rag-frontend:dev
 ```
 - Run: 
 ```bash
-docker run --rm --platform linux/arm64 -p 8080:8080 rag-frontend:dev
+docker run --rm --name frontend_dev --platform linux/arm64 -p 8080:8080 rag-frontend:dev
 ```
 - App serves static files on `http://localhost:8080` and talks to the backend at `VITE_API_URL`.
 ****
@@ -105,7 +105,7 @@ docker pull ghcr.io/huggingface/text-embeddings-inference:1.8
 ```
 Run image:
 ```bash
-docker run --rm -p 7070:80 \
+docker run --rm --name embedding_dev -p 7070:80 \
   --platform linux/amd64 \
   --mount type=bind,source="$HOME/rag-tei/models",target=/data \
   ghcr.io/huggingface/text-embeddings-inference:cpu-1.8 \
@@ -133,7 +133,7 @@ docker pull ghcr.io/abetlen/llama-cpp-python:v0.3.5@sha256:632f1037e897bd53970f9
 Run image:
 ```bash
 docker run --rm \
-  --name llm \
+  --name llm_dev \
   -p 8081:8000 \
   -v "$HOME/rag-chat/models/Qwen2.5-1.5B-Instruct-GGUF:/models" \
   -e MODEL=/models/qwen2.5-1.5b-instruct-q6_k.gguf \
