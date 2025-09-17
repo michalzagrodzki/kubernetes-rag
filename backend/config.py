@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     # Optional: direct embeddings to an OpenAI-compatible base URL (e.g., Docker Desktop model-runner)
     embeddings_base_url: str | None = Field(None, env="EMBEDDINGS_BASE_URL")
 
+    # Local LLM (llm_dev) configuration
+    # Model name for the local Qwen deployment
+    local_llm_model: str = Field("qwen2.5-1.5b-instruct", env="LOCAL_LLM_MODEL")
+    # If backend runs in a container (Docker), use host.docker.internal; if running locally, use http://localhost:8081/v1
+    local_llm_base_url: str = Field("http://host.docker.internal:8081/v1", env="LOCAL_LLM_BASE_URL")
+
     # TEI embeddings service
     # If running locally, not in container, than use: http://localhost:7070
     tei_base_url: str = Field("http://host.docker.internal:7070", env="TEI_BASE_URL")

@@ -81,12 +81,15 @@ async def stream_answer(
         f"Answer:"
     )
 
-    # call OpenAI in streaming mode with handshake timeout
+    llm_client = AsyncOpenAI(
+        base_url=settings.local_llm_base_url,
+        api_key="dummy-key",
+    )
     stream = await asyncio.wait_for(
-        client.chat.completions.create(
-            model=settings.openai_model,
-            messages=[{"role":"user","content":prompt}],
-            stream=True
+        llm_client.chat.completions.create(
+            model=settings.local_llm_model,
+            messages=[{"role": "user", "content": prompt}],
+            stream=True,
         ),
         timeout=30.0,
     )
