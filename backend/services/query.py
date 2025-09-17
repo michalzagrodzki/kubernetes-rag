@@ -2,6 +2,7 @@
 from typing import List, Tuple, Dict, Any, AsyncGenerator
 from fastapi import HTTPException
 from openai import AsyncOpenAI
+import httpx
 from sqlalchemy import text
 from services.db import get_session
 from services.tei_embeddings import TEIEmbeddings
@@ -81,25 +82,65 @@ async def stream_answer(
         f"Answer:"
     )
 
+    # Use generous timeouts for local LLM calls to avoid premature cancellation
     llm_client = AsyncOpenAI(
         base_url=settings.local_llm_base_url,
         api_key="dummy-key",
-    )
-    stream = await asyncio.wait_for(
-        llm_client.chat.completions.create(
-            model=settings.local_llm_model,
-            messages=[{"role": "user", "content": prompt}],
-            stream=True,
-        ),
-        timeout=30.0,
+        timeout=httpx.Timeout(300.0, connect=10.0, read=300.0, write=60.0, pool=300.0),
     )
 
     full_answer = ""
-    async for chunk in stream:
-        content_delta = chunk.choices[0].delta.content  # may be None
-        if content_delta:
-            full_answer += content_delta
-            yield content_delta 
+
+    if settings.local_llm_streaming:
+        # Try true upstream streaming (may be unstable with some llama.cpp builds)
+        stream = await llm_client.chat.completions.create(
+            model=settings.local_llm_model,
+            messages=[{"role": "user", "content": prompt}],
+            stream=True,
+        )
+
+        try:
+            async for chunk in stream:
+                content_delta = chunk.choices[0].delta.content  # may be None
+                if content_delta:
+                    full_answer += content_delta
+                    yield content_delta
+        except asyncio.CancelledError:
+            logger.warning("Streaming cancelled by downstream client")
+            return
+        except (httpx.RemoteProtocolError, httpx.ReadError, httpx.ReadTimeout) as e:
+            logger.warning(f"Upstream stream ended unexpectedly: {e}")
+            return
+        except Exception:
+            logger.exception("Unexpected error while streaming from LLM")
+            return
+        finally:
+            close = getattr(stream, "aclose", None)
+            if callable(close):
+                try:
+                    await close()
+                except Exception:
+                    pass
+    else:
+        # Fallback: non-streaming request to LLM, then chunk to client to simulate streaming
+        try:
+            resp = await llm_client.chat.completions.create(
+                model=settings.local_llm_model,
+                messages=[{"role": "user", "content": prompt}],
+                stream=False,
+            )
+            text = resp.choices[0].message.content or ""
+            full_answer = text
+            # Yield in small chunks to avoid huge single write
+            chunk_size = 200
+            for i in range(0, len(text), chunk_size):
+                yield text[i:i+chunk_size]
+        except asyncio.CancelledError:
+            logger.warning("Non-stream request cancelled by downstream client")
+            return
+        except Exception:
+            logger.exception("Error during non-streaming LLM request")
+            return
 
 async def answer_question(question: str) -> Tuple[str, List[Dict[str, Any]]]:
     logger.info("✅ Starting to embed query")

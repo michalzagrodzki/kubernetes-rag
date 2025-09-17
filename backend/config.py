@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     local_llm_model: str = Field("qwen2.5-1.5b-instruct", env="LOCAL_LLM_MODEL")
     # If backend runs in a container (Docker), use host.docker.internal; if running locally, use http://localhost:8081/v1
     local_llm_base_url: str = Field("http://host.docker.internal:8081/v1", env="LOCAL_LLM_BASE_URL")
+    # Some llama.cpp server builds have unstable SSE streaming; allow disabling
+    local_llm_streaming: bool = Field(False, env="LOCAL_LLM_STREAMING")
 
     # TEI embeddings service
     # If running locally, not in container, than use: http://localhost:7070

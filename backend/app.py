@@ -163,10 +163,19 @@ async def query_stream(req: QueryRequest):
     # 2) stream tokens from OpenAI
     async def event_generator():
         full_answer = ""
-        async for token in stream_answer(req.question, history):
-            full_answer += token
-            yield token
-        await run_in_threadpool(append_history, conversation_id, req.question, full_answer)
+        try:
+            async for token in stream_answer(req.question, history):
+                full_answer += token
+                yield token
+        except asyncio.CancelledError:
+            logger.warning("Client disconnected during streaming response")
+            return
+        except Exception:
+            logger.exception("Error while streaming response")
+            return
+        else:
+            # Only persist history if the stream completed successfully
+            await run_in_threadpool(append_history, conversation_id, req.question, full_answer)
 
     return StreamingResponse(
         event_generator(),
