@@ -130,16 +130,21 @@ Pull image:
 docker pull ghcr.io/abetlen/llama-cpp-python:v0.3.5@sha256:632f1037e897bd53970f9ad11d886625f0c90e362e92b244fbbbaa816b2aafa6
 ```
 
-Run image:
+Build image (uses `deploy/containers/Dockerfile.llamacpp`):
 ```bash
-docker run --rm \
-  --name llm_dev \
-  -p 8081:8000 \
-  -v "$HOME/rag-chat/models/Qwen2.5-1.5B-Instruct-GGUF:/models" \
-  -e MODEL=/models/qwen2.5-1.5b-instruct-q6_k.gguf \
-  ghcr.io/abetlen/llama-cpp-python:v0.3.5@sha256:632f1037e897bd53970f9ad11d886625f0c90e362e92b244fbbbaa816b2aafa6
+# Apple Silicon (arm64) or Linux arm64 hosts — build natively
+docker build -f deploy/containers/Dockerfile.llamacpp -t rag-llm:qwen2.5-1.5b .
 ```
-If you want to run container with logs replace `-d` with `--rm`.
+
+Run image (no volumes, no extra downloads):
+```bash
+docker run --rm --name llm_dev -p 8081:8000 rag-llm:qwen2.5-1.5b
+```
+
+Notes:
+- The Dockerfile uses `ADD` to fetch the model once during build and sets `MODEL` env in the image. The base image auto-starts the server on port 8000.
+- To switch models, edit `deploy/containers/Dockerfile.llamacpp` to point at a different GGUF file, rebuild, and re-run.
+- If you already have the GGUF locally and want to avoid any build-time download, replace the `ADD` line with a `COPY` from your local path into `/models/`.
 
 ## Roadmap
 - Add Kustomize/Helm manifests under `deploy/k8s/` with Secrets, PVCs, and Ingress.

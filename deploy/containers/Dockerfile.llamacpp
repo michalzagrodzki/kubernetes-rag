@@ -1,0 +1,22 @@
+######## Llama.cpp server with prebaked model ########
+# Base image provides llama-cpp-python server that reads MODEL env var
+FROM ghcr.io/abetlen/llama-cpp-python:v0.3.5@sha256:632f1037e897bd53970f9ad11d886625f0c90e362e92b244fbbbaa816b2aafa6
+
+# Working directory for models inside the image
+WORKDIR /models
+
+# Bake the Qwen2.5 1.5B Instruct GGUF model into the image layer
+# This avoids mounting a host volume or downloading at container runtime.
+# The ADD instruction caches the download as a build layer; subsequent builds
+# reuse the cached layer unless the URL/file changes.
+ADD https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q6_k.gguf /models/qwen2.5-1.5b-instruct-q6_k.gguf
+
+# Default server configuration (the base image starts the server automatically)
+ENV MODEL=/models/qwen2.5-1.5b-instruct-q6_k.gguf \
+    HOST=0.0.0.0 \
+    PORT=8000
+
+EXPOSE 8000
+
+# No CMD needed: base image defines entrypoint to run `llama_cpp.server`
+
