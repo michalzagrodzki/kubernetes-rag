@@ -1,0 +1,85 @@
+services:
+  backend_dev:
+    build:
+      context: .
+      dockerfile: deploy/containers/Dockerfile.backend
+    container_name: backend_dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    # Load environment from backend/.env (contains OpenAI, Supabase, Postgres, TEI, etc.)
+    env_file:
+      - backend/.env
+    environment:
+      # Point backend to local services in this compose network
+      TEI_BASE_URL: http://embedding_dev:80
+      LOCAL_LLM_BASE_URL: http://llm_dev:8000/v1
+    volumes:
+      # Optional: persist uploaded PDFs across restarts
+      - ./backend/pdfs:/app/pdfs
+      # Optional: live-edit backend code (comment out if not desired)
+      - ./backend:/app
+    depends_on:
+      - embedding_dev
+      - llm_dev
+
+  frontend_dev:
+    build:
+      context: .
+      dockerfile: deploy/containers/Dockerfile.frontend
+      # Frontend proxies /v1/* to BACKEND_URL set below; the VITE_API_URL
+      # build arg is not strictly needed for the nginx deploy image, but
+      # kept here for compatibility with any code referencing it.
+      args:
+        VITE_API_URL: http://backend_dev:8000
+    container_name: frontend_dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Used by nginx template to proxy API traffic
+      BACKEND_URL: http://backend_dev:8000
+    depends_on:
+      - backend_dev
+
+  # Text Embeddings Inference (TEI) server for embeddings
+  # Uses an OpenAI-compatible /embed endpoint
+  embedding_dev:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+    # On Apple Silicon, this image may not have an arm64 manifest.
+    # Force x86_64 with emulation to avoid manifest errors.
+    platform: linux/amd64
+    container_name: embedding_dev
+    restart: unless-stopped
+    # TEI listens on port 80 by default
+    ports:
+      - "7070:80"
+    volumes:
+      # Mount local cache of TEI models to avoid re-downloading each time
+      - ${TEI_MODEL_DIR:-$HOME/rag-tei/models}:/data
+    environment:
+      # Choose a 768-dim model to match PGVECTOR_DIM=768 default
+      MODEL_ID: /data/nomic-embed-text-v1.5
+      # Increase if you see throttling under load
+      # MAX_INPUT_LENGTH: 8192
+      # NUM_WORKERS: 2
+
+  # Local LLM via llama.cpp server (OpenAI-compatible API at /v1)
+  llm_dev:
+    build:
+      context: .
+      dockerfile: deploy/containers/Dockerfile.llamacpp
+    container_name: llm_dev
+    restart: unless-stopped
+    ports:
+      - "8081:8000"
+    environment:
+      # These defaults are set in the Dockerfile, override here if needed
+      HOST: 0.0.0.0
+      PORT: 8000
+      # MODEL: /models/qwen2.5-1.5b-instruct-q6_k.gguf
+
+networks:
+  default:
+    name: rag-dev
+    driver: bridge
