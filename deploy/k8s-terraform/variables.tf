@@ -159,18 +159,6 @@ variable "postgres_db" {
   description = "Postgres database name"
 }
 
-variable "openai_api_key" {
-  type        = string
-  description = "OpenAI API key (or dummy when using vLLM)"
-  sensitive   = true
-}
-
-variable "openai_model" {
-  type        = string
-  description = "Default chat model"
-  default     = "gpt-3.5-turbo"
-}
-
 variable "embedding_model" {
   type        = string
   description = "Embedding model"

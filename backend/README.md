@@ -1,24 +1,23 @@
 # RAG Web API (FastAPI + Postgres)
 
-Retrieval-Augmented Generation (RAG) backend built with FastAPI. It ingests PDFs, chunks and embeds them into a pgvector-backed table, and answers questions via OpenAI (or local LLM) while storing ingestion metadata and chat history in Postgres.
+Retrieval-Augmented Generation (RAG) backend built with FastAPI. It ingests PDFs, chunks and embeds them into a pgvector-backed table, and answers questions via a local llama.cpp-compatible LLM while storing ingestion metadata and chat history in Postgres.
 
 ## Highlights
 - Upload PDFs and query them immediately through LangChain’s pipeline.
 - Local Postgres + pgvector managed via Docker Compose with persistent storage.
 - Alembic migrations keep schemas in sync (baseline included).
 - Streaming/non-streaming answers with optional conversation memory.
-- Works with OpenAI APIs, local TEI embeddings, and llama.cpp LLM container.
+- Works with local TEI embeddings and a llama.cpp LLM container.
 
 ## Prerequisites
 - Python 3.10+
 - Docker + Docker Compose v2
-- OpenAI API key (or compatible endpoint)
 - Optional: Git LFS if you need local TEI/LLM models
 
 ## Environment Variables
 Two env files are used during development:
 
-1. `backend/.env` — application settings (OpenAI keys, retrieval tunables). Adjust or create your own copy.
+1. `backend/.env` — application settings (retrieval tunables, service URLs). Adjust or create your own copy.
 2. `.env.postgres` — Postgres connection info shared by Docker Compose, Alembic, and the backend.
 
 Start by copying the template:
@@ -33,8 +32,6 @@ Update values as needed. Defaults assume the Compose service (`postgres_dev`) wi
 `backend/.env` must provide at least:
 
 ```
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
 EMBEDDING_MODEL=text-embedding-3-small
 TOP_K=5
 PGVECTOR_DIM=768

@@ -6,7 +6,6 @@ import httpx
 from sqlalchemy import text
 from services.db import get_session
 from services.tei_embeddings import TEIEmbeddings
-import openai
 from config import settings
 import logging
 import asyncio
@@ -15,11 +14,15 @@ from starlette.concurrency import run_in_threadpool
 
 logger = logging.getLogger(__name__)
 
-openai.api_key = settings.openai_api_key
 # Use the same embeddings provider as ingestion (TEI) to match vector dimensions
 embedding_model = TEIEmbeddings(base_url=settings.tei_base_url)
 
-client = AsyncOpenAI(api_key=settings.openai_api_key)
+# Use generous timeouts for local LLM calls to avoid premature cancellation
+llm_client = AsyncOpenAI(
+    base_url=settings.local_llm_base_url,
+    api_key="dummy-key",
+    timeout=httpx.Timeout(300.0, connect=10.0, read=300.0, write=60.0, pool=300.0),
+)
 
 def to_pgvector_literal(vec: list[float]) -> str:
     return f"[{','.join(f'{x:.6f}' for x in vec)}]"
@@ -59,7 +62,7 @@ async def stream_answer(
     """
     1. retrieve top docs
     2. build prompt including history
-    3. fire off OpenAI streaming chat
+    3. fire off local LLM streaming chat
     4. yield each token as soon as it arrives
     """
     logger.info("Embedding & retrieving docs")
@@ -80,13 +83,6 @@ async def stream_answer(
         f"Context from documents:\n{ctx}\n\n"
         f"Question: {question}\n"
         f"Answer:"
-    )
-
-    # Use generous timeouts for local LLM calls to avoid premature cancellation
-    llm_client = AsyncOpenAI(
-        base_url=settings.local_llm_base_url,
-        api_key="dummy-key",
-        timeout=httpx.Timeout(300.0, connect=10.0, read=300.0, write=60.0, pool=300.0),
     )
 
     full_answer = ""
@@ -188,25 +184,23 @@ async def answer_question(question: str) -> Tuple[str, List[Dict[str, Any]]]:
     context = "\n\n---\n\n".join(context_blocks)
     prompt = f"Use the following context to answer the question:\n\n{context}\n\nQuestion: {question}\nAnswer:"
 
-    # Step 4: Generate answer via OpenAI ChatCompletion (sync call in async context)
-    # Wrap blocking call with asyncio to avoid hanging the event loop
-    from openai import OpenAI
-    client = OpenAI(api_key=settings.openai_api_key)
-    logger.info("✅ Prompt ready, calling OpenAI")
+    # Step 4: Generate answer via local LLM client (same client used in streaming path)
+    logger.info("✅ Prompt ready, calling local LLM client")
 
-    async def run_completion(prompt: str, timeout: float = 20.0):
-        return await asyncio.wait_for(
-            asyncio.to_thread(
-                lambda: client.chat.completions.create(
-                    model=settings.openai_model,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-            ),
-            timeout=timeout
-        )
+    async def run_completion(prompt_text: str, timeout: float = 60.0):
+        try:
+            resp = await llm_client.chat.completions.create(
+                model=settings.local_llm_model,
+                messages=[{"role": "user", "content": prompt_text}],
+                stream=False,
+            )
+            return resp
+        except asyncio.TimeoutError:
+            raise HTTPException(status_code=504, detail="LLM request timed out")
 
     response = await run_completion(prompt)
-    logger.info("✅ Got response from OpenAI")
-    answer = response.choices[0].message.content.strip()
+    logger.info("✅ Got response from local LLM")
+    answer = response.choices[0].message.content or ""
+    answer = answer.strip()
 
     return answer, top_docs

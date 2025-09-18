@@ -16,8 +16,6 @@ resource "kubernetes_secret_v1" "rag_secrets" {
     POSTGRES_USER    = var.postgres_user
     POSTGRES_PASSWORD = var.postgres_password
     POSTGRES_DB      = var.postgres_db
-    OPENAI_API_KEY   = var.openai_api_key
-    OPENAI_MODEL     = var.openai_model
     EMBEDDING_MODEL  = var.embedding_model
   }
   type = "Opaque"
@@ -98,24 +96,6 @@ resource "kubernetes_deployment_v1" "backend" {
               secret_key_ref {
                 name = kubernetes_secret_v1.rag_secrets.metadata[0].name
                 key  = "POSTGRES_URL"
-              }
-            }
-          }
-          env {
-            name  = "OPENAI_API_KEY"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret_v1.rag_secrets.metadata[0].name
-                key  = "OPENAI_API_KEY"
-              }
-            }
-          }
-          env {
-            name  = "OPENAI_MODEL"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret_v1.rag_secrets.metadata[0].name
-                key  = "OPENAI_MODEL"
               }
             }
           }

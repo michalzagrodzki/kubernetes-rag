@@ -123,7 +123,7 @@ This client targets the companion RAG backend described below. Ensure it is runn
 
 RAG Web API (FastAPI + Postgres)
 
-Retrieval-Augmented Generation (RAG) backend built with FastAPI. It ingests PDFs, chunks and embeds them into a Postgres/pgvector-backed table, and answers questions using OpenAI with both standard and streaming responses. The service also persists ingestion metadata and chat history via SQLModel.
+Retrieval-Augmented Generation (RAG) backend built with FastAPI. It ingests PDFs, chunks and embeds them into a Postgres/pgvector-backed table, and answers questions using a local llama.cpp-compatible LLM with both standard and streaming responses. The service also persists ingestion metadata and chat history via SQLModel.
 
 Added Value
 

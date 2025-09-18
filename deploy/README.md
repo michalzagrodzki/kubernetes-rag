@@ -25,7 +25,7 @@ Quick Start
    - terraform init
 
 3) Plan and apply:
-   - terraform plan -var "backend_image=<registry>/rag-backend:<tag>" -var "frontend_image=<registry>/rag-frontend:<tag>" -var "api_host=api.example.com" -var "frontend_host=app.example.com" -var "postgres_url=..." -var "postgres_server=..." -var "postgres_user=..." -var "postgres_password=..." -var "postgres_db=..." -var "openai_api_key=dummy" -var "enable_tls=false"
+   - terraform plan -var "backend_image=<registry>/rag-backend:<tag>" -var "frontend_image=<registry>/rag-frontend:<tag>" -var "api_host=api.example.com" -var "frontend_host=app.example.com" -var "postgres_url=..." -var "postgres_server=..." -var "postgres_user=..." -var "postgres_password=..." -var "postgres_db=..." -var "enable_tls=false"
    - terraform apply ... (same vars)
 
 Notes

@@ -6,7 +6,7 @@ This is a Retrieval-Augmented Generation (RAG) solution designed to run on Kuber
 
 - **Backend**: FastAPI application (`backend/`) using:
   - FastAPI with SQLModel for database operations
-  - OpenAI API for LLM and embeddings
+  - Local llama.cpp-compatible LLM and TEI embeddings service
   - Postgres/pgvector for vector storage
   - LangChain for RAG pipeline
   - Main entry point: `backend/app.py`
@@ -60,11 +60,9 @@ docker build -f deploy/containers/Dockerfile.llamacpp -t rag-llm:qwen2.5-1.5b .
 ## Environment Variables
 
 Required environment variables (see `backend/.env`):
-- `OPENAI_API_KEY`: OpenAI API key for LLM/embeddings
 - `POSTGRES_URL`: PostgreSQL connection string with pgvector
 
 Optional:
-- `OPENAI_MODEL`: LLM model (default: gpt-4)
 - `EMBEDDING_MODEL`: Embedding model
 - `PDF_DIR`: Directory for PDF documents
 
@@ -72,8 +70,8 @@ Optional:
 
 - **RAG Pipeline**: PDF ingestion → text embedding → vector storage → similarity search → LLM generation
 - **Vector Store**: Uses Postgres with pgvector extension for similarity search
-- **Embeddings**: Supports OpenAI embeddings or local Nomic embeddings via TEI
-- **LLM**: OpenAI API or local LLaMA.cpp with Qwen models
+- **Embeddings**: Uses local Nomic embeddings via TEI
+- **LLM**: Local LLaMA.cpp with Qwen models
 - **Deployment**: Multi-stage Docker builds, Kubernetes manifests, Terraform infrastructure
 
 ## Development Workflow

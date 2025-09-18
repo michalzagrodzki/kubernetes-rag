@@ -7,14 +7,14 @@ This repository aims to demonstrate how to run a Retrieval-Augmented Generation 
 - Goal: a minimal, reproducible path to deploy a RAG stack on any Kubernetes (kind/minikube and managed clusters like GKE/EKS/AKS).
 
 ## What’s Included
-- Backend: FastAPI RAG service (`app.py`) with OpenAI and Postgres/pgvector support.
+- Backend: FastAPI RAG service (`app.py`) with local llama.cpp-compatible LLM and Postgres/pgvector support.
 - Containers: Dockerfiles in `deploy/containers/` for backend and optional vLLM embeddings.
 - Infra scaffold: Terraform skeleton under `deploy/k8s-terraform/` to provision cluster resources (experimental).
 - Dev bits: `requirements.txt`, `Makefile`, and a basic project layout.
 
 ## Kubernetes Focus
 - Containerization: build images for the RAG components.
-- Configuration: inject secrets like `OPENAI_API_KEY`, `POSTGRES_URL`, database credentials via `Secret` or external managers.
+- Configuration: inject secrets like `POSTGRES_URL` and other database credentials via `Secret` or external managers.
 - Storage: optional `PersistentVolumeClaim` for local PDFs or caches.
 - Networking: `Service` + (later) `Ingress`/`Gateway` for external access and TLS.
 - Scaling: set resource requests/limits and add HPA; GPU notes for embedding/LLM pods (planned).

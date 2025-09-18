@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="RAG FastAPI (Postgres)",
     version="1.0.0",
-    description="RAG service using Postgres + pgvector, OpenAI API, and SQLModel",
+    description="RAG service using Postgres + pgvector, local LLM, and SQLModel",
     lifespan=lifespan
 )
 
