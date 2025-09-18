@@ -1,14 +1,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field
-from sqlalchemy.engine import URL
 
 class Settings(BaseSettings):
-    # Supabase
-    supabase_url: str = Field(..., env="SUPABASE_URL")
-    supabase_key: str = Field(..., env="SUPABASE_KEY")
-    supabase_table: str = Field("documents", env="SUPABASE_TABLE")
-    supabase_documents: str = "documents"
-
     # OpenAI
     openai_api_key: str = Field(..., env="OPENAI_API_KEY")
     openai_model: str = Field("gpt-3.5-turbo", env="OPENAI_MODEL")
@@ -34,11 +27,11 @@ class Settings(BaseSettings):
     pdf_dir: str = Field("pdfs/", env="PDF_DIR")
 
     ## PostgreSQL (metadata) credentials, read from .env
-    POSTGRES_SERVER: str  = Field(..., env="POSTGRES_SERVER")
-    POSTGRES_PORT: int    = Field(6543, env="POSTGRES_PORT")
-    POSTGRES_USER: str    = Field(..., env="POSTGRES_USER")
+    POSTGRES_SERVER: str  = Field("localhost", env="POSTGRES_SERVER")
+    POSTGRES_PORT: int    = Field(5432, env="POSTGRES_PORT")
+    POSTGRES_USER: str    = Field("postgres", env="POSTGRES_USER")
     POSTGRES_PASSWORD: str = Field("", env="POSTGRES_PASSWORD")
-    POSTGRES_DB: str      = Field("", env="POSTGRES_DB")
+    POSTGRES_DB: str      = Field("postgres", env="POSTGRES_DB")
     POSTGRES_URL: str = Field("", env="POSTGRES_URL")
 
     # PGVector

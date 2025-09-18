@@ -12,7 +12,7 @@ What’s included
 
 Assumptions
 - You have a Kubernetes cluster and kubectl context configured.
-- External services (Supabase URL/Key and Postgres URL) are reachable from the cluster.
+- External services (Postgres instance, OpenAI endpoint) are reachable from the cluster.
 - vLLM runs on a GPU node pool (adjust tolerations/nodeSelector if needed).
 
 Quick Start
@@ -25,11 +25,10 @@ Quick Start
    - terraform init
 
 3) Plan and apply:
-   - terraform plan -var "backend_image=<registry>/rag-backend:<tag>" -var "frontend_image=<registry>/rag-frontend:<tag>" -var "api_host=api.example.com" -var "frontend_host=app.example.com" -var "supabase_url=..." -var "supabase_key=..." -var "postgres_url=..." -var "openai_api_key=dummy" -var "enable_tls=false"
+   - terraform plan -var "backend_image=<registry>/rag-backend:<tag>" -var "frontend_image=<registry>/rag-frontend:<tag>" -var "api_host=api.example.com" -var "frontend_host=app.example.com" -var "postgres_url=..." -var "postgres_server=..." -var "postgres_user=..." -var "postgres_password=..." -var "postgres_db=..." -var "openai_api_key=dummy" -var "enable_tls=false"
    - terraform apply ... (same vars)
 
 Notes
 - The backend mounts a PVC at /app/pdfs for uploaded files (PDF_DIR).
 - vLLM is exposed inside the cluster at http://vllm:8000/v1. The backend can be switched to use it by setting OPENAI_BASE_URL to this value in the future (code change required to read it).
 - Ingress is split into two hosts: app (frontend) and api (backend). Enable TLS via enable_tls + secret names.
-

@@ -18,3 +18,4 @@ Thumbs.db
 
 # Optional local tooling dirs
 /supabase/
+/.env.postgres

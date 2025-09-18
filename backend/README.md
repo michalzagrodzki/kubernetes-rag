@@ -1,183 +1,144 @@
-# RAG Web API (FastAPI + Supabase)
+# RAG Web API (FastAPI + Postgres)
 
-Retrieval-Augmented Generation (RAG) backend built with FastAPI. It ingests PDFs, chunks and embeds them into a Supabase-backed vector store, and answers questions using OpenAI with both standard and streaming responses. The service also persists basic chat history and ingestion metadata in Postgres (via SQLModel).
+Retrieval-Augmented Generation (RAG) backend built with FastAPI. It ingests PDFs, chunks and embeds them into a pgvector-backed table, and answers questions via OpenAI (or local LLM) while storing ingestion metadata and chat history in Postgres.
 
-## Added Value
-- Fast start RAG backend: upload PDFs and query them immediately.
-- Managed vector DB via Supabase + pgvector; simple to operate.
-- Streaming answers with conversation history support.
-- Clean FastAPI interface with OpenAPI docs and typed schemas.
-- Async SQLModel access to Postgres for history and ingestion records.
-
-## Technology Stack
-- FastAPI + Uvicorn: web framework and ASGI server.
-- OpenAI + LangChain: generation and embeddings; `SupabaseVectorStore` for retrieval.
-- Supabase (Postgres + pgvector): vector storage for documents.
-- SQLModel + asyncpg: async DB access for metadata and history.
-- Pydantic Settings: configuration via environment variables.
+## Highlights
+- Upload PDFs and query them immediately through LangChain’s pipeline.
+- Local Postgres + pgvector managed via Docker Compose with persistent storage.
+- Alembic migrations keep schemas in sync (baseline included).
+- Streaming/non-streaming answers with optional conversation memory.
+- Works with OpenAI APIs, local TEI embeddings, and llama.cpp LLM container.
 
 ## Prerequisites
-- Python 3.10+ (virtualenv recommended).
-- Supabase project (or Postgres with `pgvector` extension enabled) for the `documents` table.
-- OpenAI API key.
+- Python 3.10+
+- Docker + Docker Compose v2
+- OpenAI API key (or compatible endpoint)
+- Optional: Git LFS if you need local TEI/LLM models
 
 ## Environment Variables
-Create a `.env` file in the project root with at least:
+Two env files are used during development:
+
+1. `backend/.env` — application settings (OpenAI keys, retrieval tunables). Adjust or create your own copy.
+2. `.env.postgres` — Postgres connection info shared by Docker Compose, Alembic, and the backend.
+
+Start by copying the template:
+
+```bash
+cp .env.postgres.example .env.postgres
+```
+
+Update values as needed. Defaults assume the Compose service (`postgres_dev`) with database `ragdb`, user `rag`, password `ragpassword`, on port `5432`.
+
+### Required variables
+`backend/.env` must provide at least:
 
 ```
-# Supabase API
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key   # service-role key recommended for inserts
-SUPABASE_TABLE=documents         # default used by the app
-
-# OpenAI
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-3.5-turbo       # default in config.py
-EMBEDDING_MODEL=text-embedding-ada-002
-
-# Postgres (async URL, e.g. Supabase)
-# Format: postgresql+asyncpg://USER:PASSWORD@HOST:PORT/DB
-POSTGRES_URL=postgresql+asyncpg://... 
-
-# Optional
+OPENAI_MODEL=gpt-4o-mini
+EMBEDDING_MODEL=text-embedding-3-small
 TOP_K=5
-PDF_DIR=pdfs/
+PGVECTOR_DIM=768
 ```
 
-Notes:
-- The app connects with SSL; ensure your Postgres accepts SSL (Supabase does).
-- For Supabase vector operations, you may need a service role key unless RLS policies allow inserts.
+`.env.postgres` should include:
 
-## Database Schema
-You need these tables in Postgres/Supabase. Example SQL (adjust to your environment):
+```
+POSTGRES_DB=ragdb
+POSTGRES_USER=rag
+POSTGRES_PASSWORD=ragpassword
+POSTGRES_SERVER=postgres_dev
+POSTGRES_PORT=5432
+POSTGRES_URL=postgresql+psycopg://rag:ragpassword@postgres_dev:5432/ragdb?sslmode=disable
+DATABASE_URL=postgresql+psycopg://rag:ragpassword@localhost:5432/ragdb
+``` 
 
-```sql
--- Enable pgvector (on Supabase: `extensions` -> enable `vector`)
-create extension if not exists vector;
-create extension if not exists pgcrypto; -- for gen_random_uuid()
+Adjust `POSTGRES_SERVER` to `localhost` if you run the backend outside Docker Compose.
 
--- Vector store table that LangChain SupabaseVectorStore expects
-create table if not exists public.documents (
-  id uuid primary key default gen_random_uuid(),
-  content text not null,
-  embedding vector(768),                -- must match EMBEDDING_MODEL dim
-  metadata jsonb not null default '{}'::jsonb
-);
-create index if not exists documents_embedding_idx on public.documents using ivfflat (embedding vector_cosine_ops);
+## Local Postgres via Docker Compose
 
--- Chat history
-create table if not exists public.chat_history (
-  id bigserial primary key,
-  conversation_id uuid not null,
-  question text not null,
-  answer text not null,
-  created_at timestamptz not null default now()
-);
-create index if not exists chat_history_cid_created_idx on public.chat_history (conversation_id, created_at);
+1. Pull models if you plan to run the optional embedding/LLM containers (see repo root README).
+2. Copy `.env.postgres.example` to `.env.postgres` and tweak credentials/ports as required.
+3. Start the stack (Postgres + optional services):
+   ```bash
+   docker compose up -d postgres_dev embedding_dev llm_dev
+   ```
+   Add `backend_dev`/`frontend_dev` if you want the entire stack running in Docker.
+4. Confirm the database is reachable:
+   ```bash
+   docker compose exec postgres_dev psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c 'select now();'
+   ```
+5. Data persists in the `pgdata` Docker volume. Remove it with `docker volume rm rag-k8s_pgdata` when you need a clean slate.
 
--- PDF ingestion metadata
-create table if not exists public.pdf_ingestion (
-  id uuid primary key default gen_random_uuid(),
-  filename text not null,
-  metadata json not null default '{}',
-  ingested_at timestamptz not null default now()
-);
+## Database Schema & Migrations
+
+Alembic handles schema creation. Baseline migration `20250316_01_baseline.py` creates:
+- `pdf_ingestion` — ingestion metadata
+- `documents` — chunked content + pgvector embeddings
+- `chat_history` — conversation transcripts
+- `vector` extension (pgvector)
+
+Run migrations after Postgres is up:
+
+```bash
+cd backend
+alembic upgrade head
 ```
 
-Dimension note: If you switch to a different embedding model (e.g., `text-embedding-3-small` with 768 dims, or `-large` with 3072), update the `vector(<dims>)` size and reindex.
+Alembic reads `POSTGRES_URL` (or `DATABASE_URL`) from the environment. Use `ALEMBIC_DATABASE_URL` to override per command.
 
-## How to Run
-1) Create and activate a virtual environment:
-   `python3 -m venv .venv && source .venv/bin/activate`
+Create a new migration when models change:
 
-2) Install dependencies:
-   `pip install -r requirements.txt`
+```bash
+alembic revision --autogenerate -m "describe change"
+alembic upgrade head
+```
+Review generated SQL before upgrading.
 
-3) Set up `.env` and ensure your Postgres/Supabase tables exist (see schema above).
+## Running the Backend Locally (host Python)
 
-4) Start the API:
-   - `make run`
-   - or `uvicorn app:app --reload`
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app:app --reload --port 8000
+```
 
-Open the docs at `http://localhost:8000/docs`.
+Ensure the Compose Postgres container is running (or point env vars to another Postgres instance).
+
+## Running via Docker Compose
+
+```bash
+docker compose up -d backend_dev frontend_dev
+```
+
+- Backend listens on `http://localhost:8000`
+- Frontend (if enabled) on `http://localhost:8080`
+- Embeddings service on `http://localhost:7070`
+- Local LLM API on `http://localhost:8081/v1`
 
 ## API Overview
-- `POST /v1/upload` — Upload a PDF; chunks and stores embeddings; records ingestion metadata.
-- `GET /v1/documents?skip=0&limit=10` — List stored documents (content, embedding, metadata).
-- `POST /v1/query` — Non-streaming Q&A over your documents; returns answer and sources.
-- `POST /v1/query-stream` — Streaming Q&A; returns token stream; response header `x-conversation-id` is set.
-- `GET /v1/history/{conversation_id}` — Returns chat history for a conversation.
+- `POST /v1/upload` — Upload a PDF, chunk, embed, and store metadata in Postgres.
+- `GET /v1/documents` — Paginated list of stored documents.
+- `POST /v1/query` — Retrieve + answer (non-streaming).
+- `POST /v1/query-stream` — Streaming answer; response header `x-conversation-id` persists history.
+- `GET /v1/history/{conversation_id}` — Conversation history.
 
-### Example Requests
-Upload a PDF:
-```
+### Example requests
+```bash
 curl -F "file=@/path/to/file.pdf" http://localhost:8000/v1/upload
-```
 
-Ask a question (non-streaming):
-```
 curl -X POST http://localhost:8000/v1/query \
   -H 'Content-Type: application/json' \
   -d '{"question": "What are the key points?"}'
 ```
 
-Ask a question (streaming):
-```
-curl -N -X POST http://localhost:8000/v1/query-stream \
-  -H 'Content-Type: application/json' \
-  -d '{"question": "Summarize the document", "conversation_id": null}' -i
-```
-Note: Capture `x-conversation-id` from the response headers and reuse it to maintain history.
-
-## Project Structure
-```
-.
-├── app.py                 # FastAPI app, routes, CORS, lifespan
-├── config.py              # Pydantic Settings (env-driven config)
-├── schemas.py             # Request/response Pydantic models
-├── services/
-│   ├── db.py              # Async SQLModel/engine and session management
-│   ├── models.py          # SQLModel table mappings (documents, pdf_ingestion)
-│   ├── ingest.py          # PDF loading, chunking, embedding insertion
-│   ├── documents.py       # Document listing via SQLModel
-│   ├── vector_store.py    # Supabase client + LangChain vector store
-│   ├── history.py         # Chat history CRUD
-│   └── query.py           # Retrieval + OpenAI completion (sync + streaming)
-├── pdfs/                  # Local store for uploaded PDFs
-├── requirements.txt       # Python dependencies
-├── Makefile               # `make run` convenience target
-└── README.md
-```
-
-## Configuration and Tuning
-- CORS origins: update in `app.py` (`origins` list) for your frontend.
-- Chunking: adjust `chunk_size` / `chunk_overlap` in `services/ingest.py`.
-- Models: configure `OPENAI_MODEL` and `EMBEDDING_MODEL` in `.env`.
-- Retrieval `top_k`: set via `TOP_K` (default 5) and reflect in queries if needed.
-- Table names: change `SUPABASE_TABLE` if not using `documents`.
-
-## Development Guide
-- Add endpoints: extend `router_v1` in `app.py`; define Pydantic schemas in `schemas.py`.
-- DB migrations: consider adding Alembic to manage schema evolution (already in requirements).
-- Error handling: `services/query.py` uses timeouts; add retry/backoff where needed.
-- Testing: factor logic into services and test with async DB sessions and mocked OpenAI.
-- Observability: integrate logging/tracing (e.g., OpenTelemetry) if needed.
-- Security: avoid shipping service-role keys to untrusted clients; keep this API server-side.
-
 ## Troubleshooting
-- Connection issues: verify `POSTGRES_URL` uses `postgresql+asyncpg://...` and that SSL is enabled.
-- Vector ops failing: ensure `documents` table exists and dimensions match the embedding model.
-- Vector search failing: check if the embedding model used for search matches the one used when uploading documents. If `EMBEDDING_MODEL` changed after ingestion, re-embed your documents so query-time vectors and stored vectors share the same dimension and distribution; ensure the `documents.embedding` vector size matches and rebuild the IVFFLAT index if you changed dimensions.
-- RLS policies: if using Supabase with RLS enabled, add policies to allow the API to insert/select.
-- Streaming stalls: check network proxies; server streams `text/plain` tokens; use `curl -N`.
+- **Connection refused**: ensure `docker compose ps postgres_dev` shows `healthy`; verify ports not taken by another Postgres install.
+- **SSL errors**: local DSN includes `?sslmode=disable`. Remote instances may require `require` or `verify-full`.
+- **Dimension mismatch**: align `PGVECTOR_DIM` with the embedding model dimension; update migration or create a new one when changing models.
+- **Resetting data**: `docker compose down` keeps data. Remove volume with `docker compose down --volumes` or `docker volume rm rag-k8s_pgdata` for a clean DB.
 
-## Roadmap Ideas
-- User auth + per-user namespaces for documents and chat history.
-- Better source attribution: return chunk/page references with answers.
-- Background ingestion + progress tracking.
-- Switchable retrievers (SQL-only vs. SupabaseVectorStore abstraction).
-- Caching or hybrid search (BM25 + vector) for improved recall.
-
----
-
-Happy hacking! Open `http://localhost:8000/docs` to explore the API.
+## Next Steps
+- Add integration tests against the Compose Postgres service.
+- Extend migrations for future schema changes.

@@ -147,7 +147,7 @@ async def answer_question(question: str) -> Tuple[str, List[Dict[str, Any]]]:
     # Step 1: Embed the question (offload to thread)
     q_vector = await run_in_threadpool(embedding_model.embed_query, question)
     logger.info("✅ Finished embedding query")
-    # Step 2: Query top-5 similar documents from Supabase
+    # Step 2: Query top-5 similar documents from Postgres
     sql = text("""
         SELECT id, content, metadata, 1 - (embedding <=> :q) AS similarity
         FROM documents

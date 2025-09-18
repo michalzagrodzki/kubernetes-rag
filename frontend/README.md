@@ -2,7 +2,7 @@
 
 Frontend client for a Retrieval-Augmented Generation (RAG) system. It connects to the companion FastAPI backend to ask questions about your uploaded PDFs. The UI provides a simple “Document Chat” experience with conversation history, streaming answers, and a clean component setup using Tailwind and shadcn/ui.
 
-This README focuses on the client. For the backend reference and API contract, see “RAG Web API (FastAPI + Supabase)” summary below.
+This README focuses on the client. For the backend reference and API contract, see “RAG Web API (FastAPI + Postgres)” summary below.
 
 ## Added Value
 
@@ -117,18 +117,18 @@ Tip: Make sure you’ve uploaded and embedded PDFs via the backend API before as
 - `askStream` (`src/services/api.ts`) POSTs to `/v1/query-stream` and reads the streaming body. The current implementation concatenates chunks and returns a single `answer` string, which replaces a pending “typing” placeholder in the UI.
 - History loading calls `/v1/history/:conversationId` to rebuild the chat locally when navigating directly to a chat URL.
 
-## Backend Reference (FastAPI + Supabase)
+## Backend Reference (FastAPI + Postgres)
 
 This client targets the companion RAG backend described below. Ensure it is running and reachable at `VITE_API_URL`.
 
-RAG Web API (FastAPI + Supabase)
+RAG Web API (FastAPI + Postgres)
 
-Retrieval-Augmented Generation (RAG) backend built with FastAPI. It ingests PDFs, chunks and embeds them into a Supabase-backed vector store, and answers questions using OpenAI with both standard and streaming responses. The service also persists basic chat history and ingestion metadata in Postgres (via SQLModel).
+Retrieval-Augmented Generation (RAG) backend built with FastAPI. It ingests PDFs, chunks and embeds them into a Postgres/pgvector-backed table, and answers questions using OpenAI with both standard and streaming responses. The service also persists ingestion metadata and chat history via SQLModel.
 
 Added Value
 
 - Fast start RAG backend: upload PDFs and query them immediately.
-- Managed vector DB via Supabase + pgvector; simple to operate.
+- Local Postgres + pgvector managed via Docker Compose with persistent storage.
 - Streaming answers with conversation history support.
 - Clean FastAPI interface with OpenAPI docs and typed schemas.
 - Async SQLModel access to Postgres for history and ingestion records.

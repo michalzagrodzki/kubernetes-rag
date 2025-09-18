@@ -10,8 +10,6 @@ resource "kubernetes_secret_v1" "rag_secrets" {
     namespace = kubernetes_namespace_v1.ns.metadata[0].name
   }
   data = {
-    SUPABASE_URL     = var.supabase_url
-    SUPABASE_KEY     = var.supabase_key
     POSTGRES_URL     = var.postgres_url
     POSTGRES_SERVER  = var.postgres_server
     POSTGRES_PORT    = tostring(var.postgres_port)
@@ -31,7 +29,6 @@ resource "kubernetes_config_map_v1" "rag_config" {
     namespace = kubernetes_namespace_v1.ns.metadata[0].name
   }
   data = {
-    SUPABASE_TABLE  = var.supabase_table
     TOP_K           = tostring(var.top_k)
     PDF_DIR         = var.pdf_dir
     CORS_ORIGINS    = var.cors_origins
@@ -93,24 +90,6 @@ resource "kubernetes_deployment_v1" "backend" {
           env_from {
             config_map_ref {
               name = kubernetes_config_map_v1.rag_config.metadata[0].name
-            }
-          }
-          env {
-            name  = "SUPABASE_URL"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret_v1.rag_secrets.metadata[0].name
-                key  = "SUPABASE_URL"
-              }
-            }
-          }
-          env {
-            name  = "SUPABASE_KEY"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret_v1.rag_secrets.metadata[0].name
-                key  = "SUPABASE_KEY"
-              }
             }
           }
           env {

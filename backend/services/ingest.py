@@ -12,38 +12,39 @@ logger = logging.getLogger(__name__)
 PDF_DIR = os.getenv("PDF_DIR", "pdfs/")
 ASYNC_TIMEOUT_SECONDS = int(os.getenv("INGEST_ADD_DOCS_TIMEOUT", "300"))
 
-async def add_embeddings_with_timeout(vector_store, chunks, timeout: int = ASYNC_TIMEOUT_SECONDS) -> None:
-    """Run vector_store.add_documents in a background thread with a timeout.
+async def add_embeddings_with_timeout(chunks, timeout: int = ASYNC_TIMEOUT_SECONDS) -> None:
+    """Persist chunk embeddings in Postgres with timeout protection."""
+    logger.info("Adding embeddings to Postgres vector table...")
 
-    If the operation exceeds the timeout, proceed without cancelling it; it
-    continues to run in the background, and completion/failure is logged.
-    """
-    logger.info("Adding embeddings to Supabase vector store...")
-
-    task = asyncio.create_task(asyncio.to_thread(vector_store.add_documents, chunks))
+    task: asyncio.Task[int] = asyncio.create_task(
+        asyncio.to_thread(vector_store.add_documents, chunks)
+    )
     try:
-        await asyncio.wait_for(asyncio.shield(task), timeout=timeout)
-        logger.info("Successfully added embeddings to Supabase vector store.")
+        inserted = await asyncio.wait_for(asyncio.shield(task), timeout=timeout)
+        logger.info("Successfully persisted %s chunks to Postgres.", inserted)
     except asyncio.TimeoutError:
         logger.warning(
-            "add_documents exceeded %s seconds; proceeding while it completes in background.",
+            "Persisting embeddings exceeded %s seconds; allowing background completion.",
             timeout,
         )
 
-        def _done(t: asyncio.Task) -> None:
+        def _done(fut: asyncio.Task[int]) -> None:
             try:
-                t.result()
-                logger.info("Background add_documents finished successfully.")
-            except Exception as e:  # noqa: BLE001 - log any background failure
-                logger.exception("Background add_documents failed: %s", e)
+                inserted_bg = fut.result()
+                logger.info(
+                    "Background embedding persistence finished successfully (%s chunks).",
+                    inserted_bg,
+                )
+            except Exception as exc:  # noqa: BLE001 - log background failures
+                logger.exception("Background embedding persistence failed: %s", exc)
 
         task.add_done_callback(_done)
 
 async def ingest_pdf(file_path: str) -> int:
     logger.info("Starting PDF ingestion.")
     """
-    1) Chunk the PDF & push embeddings to Supabase.
-    2) Insert a new row into the Supabase Postgres 'Document' table via SQLModel.
+    1) Chunk the PDF & embed/store vectors in Postgres.
+    2) Insert a new row into the Postgres ingestion metadata table via SQLModel.
     """
     loader = PyPDFLoader(file_path)
     docs = loader.load()
@@ -53,8 +54,8 @@ async def ingest_pdf(file_path: str) -> int:
     chunks = splitter.split_documents(docs)
     logger.info(f"Split into {len(chunks)} chunks.")
 
-    # 1) Add embeddings to Supabase vector store with timeout protection
-    await add_embeddings_with_timeout(vector_store, chunks)
+    # 1) Add embeddings to Postgres-backed vector store with timeout protection
+    await add_embeddings_with_timeout(chunks)
 
     # 2) Record ingestion metadata in Postgres
     filename = os.path.basename(file_path)

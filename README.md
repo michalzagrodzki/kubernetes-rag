@@ -7,14 +7,14 @@ This repository aims to demonstrate how to run a Retrieval-Augmented Generation 
 - Goal: a minimal, reproducible path to deploy a RAG stack on any Kubernetes (kind/minikube and managed clusters like GKE/EKS/AKS).
 
 ## What’s Included
-- Backend: FastAPI RAG service (`app.py`) with OpenAI and pgvector/Supabase support.
+- Backend: FastAPI RAG service (`app.py`) with OpenAI and Postgres/pgvector support.
 - Containers: Dockerfiles in `deploy/containers/` for backend and optional vLLM embeddings.
 - Infra scaffold: Terraform skeleton under `deploy/k8s-terraform/` to provision cluster resources (experimental).
 - Dev bits: `requirements.txt`, `Makefile`, and a basic project layout.
 
 ## Kubernetes Focus
 - Containerization: build images for the RAG components.
-- Configuration: inject secrets like `OPENAI_API_KEY`, `POSTGRES_URL`, `SUPABASE_URL`, `SUPABASE_KEY` via `Secret` or external secret managers.
+- Configuration: inject secrets like `OPENAI_API_KEY`, `POSTGRES_URL`, database credentials via `Secret` or external managers.
 - Storage: optional `PersistentVolumeClaim` for local PDFs or caches.
 - Networking: `Service` + (later) `Ingress`/`Gateway` for external access and TLS.
 - Scaling: set resource requests/limits and add HPA; GPU notes for embedding/LLM pods (planned).
@@ -74,3 +74,20 @@ cd Qwen2.5-1.5B-Instruct-GGUF && git lfs pull && cd ..
 
 ## Contributing
 Feedback and PRs welcome. Please treat this as a moving target and include your Kubernetes flavor, versions, and any deployment notes in issues.
+
+## Local Development with Docker Compose
+
+1. Copy `.env.postgres.example` to `.env.postgres` and tweak credentials/ports if needed.
+2. Start Postgres (and optional services) locally:
+   ```bash
+   docker compose up -d postgres_dev embedding_dev llm_dev
+   ```
+3. Run database migrations:
+   ```bash
+   cd backend
+   alembic upgrade head
+   ```
+4. Start the backend locally (`uvicorn app:app`) or start the Compose `backend_dev`/`frontend_dev` services.
+5. Data is stored in the `pgdata` Docker volume. Remove it with `docker compose down --volumes` to reset.
+
+The Compose stack now uses the `pgvector/pgvector:16` image for persistence and shares credentials with the backend via `.env.postgres`.

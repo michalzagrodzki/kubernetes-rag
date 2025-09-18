@@ -36,9 +36,9 @@ async def lifespan(app: FastAPI):
     # Application shutdown: (no actions needed currently)
 
 app = FastAPI(
-    title="RAG Supabase FastAPI (SQLModel)",
+    title="RAG FastAPI (Postgres)",
     version="1.0.0",
-    description="RAG service using Supabase vector store, OpenAI API, and SQLModel/Postgres",
+    description="RAG service using Postgres + pgvector, OpenAI API, and SQLModel",
     lifespan=lifespan
 )
 
@@ -87,7 +87,7 @@ async def test_db():
     response_model=UploadResponse,
     tags=["Ingestion"],
     summary="Upload a PDF document",
-    description="Ingests a PDF, splits into chunks, and stores embeddings in Supabase"
+    description="Ingests a PDF, splits into chunks, and stores embeddings in Postgres"
 )
 async def upload_pdf(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".pdf"):
@@ -112,7 +112,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 @router_v1.get(
     "/documents",
     summary="List documents with pagination",
-    description="Fetches paginated rows from the Supabase 'documents' table.",
+    description="Fetches paginated rows from the Postgres 'documents' table.",
     response_model=List[Dict[str, Any]],
 )
 async def get_all_documents(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1, le=100)) -> Any:

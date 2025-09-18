@@ -126,23 +126,6 @@ variable "pdf_dir" {
   default     = "/app/pdfs"
 }
 
-variable "supabase_url" {
-  type        = string
-  description = "Supabase project URL"
-}
-
-variable "supabase_key" {
-  type        = string
-  description = "Supabase API key"
-  sensitive   = true
-}
-
-variable "supabase_table" {
-  type        = string
-  description = "Supabase table for vectors"
-  default     = "documents"
-}
-
 variable "postgres_url" {
   type        = string
   description = "Postgres connection URL (asyncpg)"
