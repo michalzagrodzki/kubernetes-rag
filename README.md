@@ -28,54 +28,6 @@ This repository aims to demonstrate how to run a Retrieval-Augmented Generation 
 
 ## Build and Run (Docker)
 
-### Backend (FastAPI)
-
-- Build:
-```bash
-docker build -f deploy/containers/Dockerfile.backend -t rag-backend:dev .
-```
-- Platform note (Apple Silicon/arm64):
-  - Recommended: build natively for your host to avoid emulation.
-```bash
-docker build --platform linux/arm64 -f deploy/containers/Dockerfile.backend -t rag-backend:dev .
-```
-  - If you intentionally need an amd64 image (e.g., for an amd64-only cluster), build for amd64 and run with emulation locally.
-```bash
-docker build --platform linux/amd64 -f deploy/containers/Dockerfile.backend -t rag-backend:dev .
-docker run --rm --name backend_dev --platform linux/amd64 -p 8000:8000 --env-file backend/.env rag-backend:dev
-```
-- Run: 
-```bash
-docker run --rm --name backend_dev -p 8000:8000 --platform linux/arm64 --env-file backend/.env rag-backend:dev
-```
-- Env required (in `.env` or passed as `-e`): `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `POSTGRES_URL` (and optionally `OPENAI_MODEL`, `EMBEDDING_MODEL`, `SUPABASE_TABLE`, `PDF_DIR`).
-- App serves on `http://localhost:8000` (OpenAPI docs at `/docs`).
-  - CORS: backend allows common local frontend ports, including `http://localhost:8080`.
-****
-
-### Frontend (Vite + Nginx)
-
-- Build: 
-```bash
-docker build -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=http://localhost:8000 -t rag-frontend:dev .
-```
-- Platform note (Apple Silicon/arm64):
-  - Recommended: build natively for your host to avoid emulation.
-```bash
-docker build --platform linux/arm64 -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=http://localhost:8000 -t rag-frontend:dev .
-```
-  - If you intentionally need an amd64 image (e.g., for an amd64-only cluster), build for amd64 and run with emulation locally.
-```bash
-docker build --platform linux/amd64 -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=http://localhost:8000 -t rag-frontend:dev .
-docker run --rm --name frontend_dev --platform linux/amd64 -p 8080:8080 rag-frontend:dev
-```
-- Run: 
-```bash
-docker run --rm --name frontend_dev --platform linux/arm64 -p 8080:8080 rag-frontend:dev
-```
-- App serves static files on `http://localhost:8080` and talks to the backend at `VITE_API_URL`.
-****
-
 ### Nomic Embeddings (CPU-only):
 Pull model:
 ```bash
@@ -98,20 +50,8 @@ Update config.json inside nomic model with following values:
 Pull image:
 ```bash
 # CPU-only (portable; good for M1/M2 too)
-docker pull ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
-
-# GPU (Ampere-80 like A100):
-docker pull ghcr.io/huggingface/text-embeddings-inference:1.8
+docker pull ghcr.io/huggingface/text-embeddings-inference:cpu-1.8 --platform linux/amd64
 ```
-Run image:
-```bash
-docker run --rm --name embedding_dev -p 7070:80 \
-  --platform linux/amd64 \
-  --mount type=bind,source="$HOME/rag-tei/models",target=/data \
-  ghcr.io/huggingface/text-embeddings-inference:cpu-1.8 \
-  --model-id /data/nomic-embed-text-v1.5
-```
-If you want to run container with logs replace `-d` with `--rm`.
 
 ### LLama.cpp Chat (CPU-only):
 Pull model:
@@ -124,27 +64,6 @@ git clone https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF
 # (optional but safe) ensure all LFS files are present
 cd Qwen2.5-1.5B-Instruct-GGUF && git lfs pull && cd ..
 ```
-
-Pull image:
-```bash
-docker pull ghcr.io/abetlen/llama-cpp-python:v0.3.5@sha256:632f1037e897bd53970f9ad11d886625f0c90e362e92b244fbbbaa816b2aafa6
-```
-
-Build image (uses `deploy/containers/Dockerfile.llamacpp`):
-```bash
-# Apple Silicon (arm64) or Linux arm64 hosts — build natively
-docker build -f deploy/containers/Dockerfile.llamacpp -t rag-llm:qwen2.5-1.5b .
-```
-
-Run image (no volumes, no extra downloads):
-```bash
-docker run --rm --name llm_dev -p 8081:8000 rag-llm:qwen2.5-1.5b
-```
-
-Notes:
-- The Dockerfile uses `ADD` to fetch the model once during build and sets `MODEL` env in the image. The base image auto-starts the server on port 8000.
-- To switch models, edit `deploy/containers/Dockerfile.llamacpp` to point at a different GGUF file, rebuild, and re-run.
-- If you already have the GGUF locally and want to avoid any build-time download, replace the `ADD` line with a `COPY` from your local path into `/models/`.
 
 ## Roadmap
 - Add Kustomize/Helm manifests under `deploy/k8s/` with Secrets, PVCs, and Ingress.
