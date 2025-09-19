@@ -20,6 +20,15 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 256M
 
   backend_dev:
     build:
@@ -47,6 +56,17 @@ services:
       - postgres_dev
       - embedding_dev
       - llm_dev
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          memory: 512M
 
   frontend_dev:
     build:
@@ -67,6 +87,16 @@ services:
       BACKEND_URL: http://backend_dev:8000
     depends_on:
       - backend_dev
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
 
   embedding_dev:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
@@ -76,9 +106,23 @@ services:
     ports:
       - "7070:80"
     volumes:
-      - ${TEI_MODEL_DIR:-$HOME/rag-tei/models}:/data
+      - type: bind
+        source: ${TEI_MODEL_DIR:-$HOME/rag-tei/models}
+        read_only: true
+        target: /data
     environment:
       MODEL_ID: /data/nomic-embed-text-v1.5
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    deploy:
+      resources:
+        limits:
+          cpus: "10.0"
+          memory: 17G
+        reservations:
+          memory: 4G
 
   llm_dev:
     build:
@@ -91,6 +135,16 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8000
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    deploy:
+      resources:
+        limits:
+          cpus: "10.0"
+          memory: 4G
+        reservations:
+          memory: 2G
 
 networks:
   default:
