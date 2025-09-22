@@ -1,6 +1,6 @@
 ######## Backend (FastAPI) ########
 # Build stage: compile wheels for Python deps (psycopg2 needs libpq-dev)
-FROM python:3.11-slim AS builder
+FROM python:3.13.7-slim@sha256:e7115fc80dd5fa029eb3a11ff1deece625ebb66cc5937d492cf464a704bdacbe AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -10,16 +10,15 @@ WORKDIR /wheels
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libpq-dev \
-  && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 # Use repo root as context; requirements live in backend/
 COPY backend/requirements.txt /wheels/requirements.txt
-RUN python -m pip install --upgrade pip && \
+RUN python -m pip install --upgrade pip wheel && \
     pip wheel --no-cache-dir --wheel-dir /wheels -r /wheels/requirements.txt
 
 # Runtime stage
-FROM python:3.11-slim
+FROM python:3.13.7-slim@sha256:e7115fc80dd5fa029eb3a11ff1deece625ebb66cc5937d492cf464a704bdacbe
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -27,11 +26,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PDF_DIR=/app/pdfs
 
 WORKDIR /app
-
-# Runtime libs only (psycopg2)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-  && rm -rf /var/lib/apt/lists/*
 
 # Install deps from prebuilt wheels
 COPY backend/requirements.txt /app/requirements.txt
