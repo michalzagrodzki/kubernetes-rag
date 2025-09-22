@@ -31,7 +31,8 @@ WORKDIR /app
 COPY backend/requirements.txt /app/requirements.txt
 COPY --from=builder /wheels /wheels
 RUN python -m pip install --upgrade pip && \
-    pip install --no-index --find-links=/wheels -r /app/requirements.txt
+    pip install --no-index --find-links=/wheels -r /app/requirements.txt && \
+    rm -rf /wheels /root/.cache/pip
 
 # Copy only backend application source
 COPY backend/ /app/

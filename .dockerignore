@@ -1,26 +1,63 @@
 # Global ignore for backend build context
 .git
 .gitignore
+.gitattributes
+.github/
 .DS_Store
-__pycache__/
-*.py[cod]
-*.pyo
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/coverage*/
+**/.cache/
+
+# Python envs
 .venv/
 env/
 venv/
-.pytest_cache/
-.mypy_cache/
+backend/.venv/
 
-# Local files
+# Local env/config
 .env
-pdfs/
+.env.*
+*.log
 
-# Node artifacts if present
+# Never bake local data
+pdfs/
+backend/pdfs/
+data/
+datasets/
+**/*.parquet
+**/*.csv
+**/*.tsv
+
+# Frontend / node
 node_modules/
 dist/
 build/
+packages/
+apps/
 
-# Terraform local state (if accidentally used as context)
+# Docs / examples / tests
+docs/
+examples/
+notebooks/
+**/*.ipynb
+tests/
+backend/tests/
+backend/docs/
+backend/examples/
+backend/notebooks/
+
+# Terraform / IaC
 deploy/k8s-terraform/.terraform/
 deploy/k8s-terraform/terraform.tfstate*
+deploy/k8s-terraform/terraform.tfstate.*.backup
 
+# IDE/editor
+.vscode/
+.idea/
+*.swp
