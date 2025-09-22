@@ -1,22 +1,59 @@
-######## Llama.cpp server with prebaked model ########
-# Base image provides llama-cpp-python server that reads MODEL env var
-FROM ghcr.io/abetlen/llama-cpp-python:v0.3.5@sha256:632f1037e897bd53970f9ad11d886625f0c90e362e92b244fbbbaa816b2aafa6
+######## Llama.cpp server with prebaked model — Hardened ########
 
-# Working directory for models inside the image
-WORKDIR /models
+# --- Builder stage: fetch model + verify checksum (kept out of final image) ---
+FROM alpine:3.20 AS model-fetcher
+ARG MODEL_URL="https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q6_k.gguf"
+ARG MODEL_SHA256="e16d94f3b1eb243f6f6be9eee51090ef5dfd741324394fd5b6e0e425c33df5c7"
 
-# Bake the Qwen2.5 1.5B Instruct GGUF model into the image layer
-# This avoids mounting a host volume or downloading at container runtime.
-# The ADD instruction caches the download as a build layer; subsequent builds
-# reuse the cached layer unless the URL/file changes.
-ADD https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q6_k.gguf /models/qwen2.5-1.5b-instruct-q6_k.gguf
+RUN apk add --no-cache curl coreutils \
+  && mkdir -p /models \
+  && curl -LfsS "${MODEL_URL}" -o /models/qwen2.5-1.5b-instruct-q6_k.gguf \
+  && echo "${MODEL_SHA256}  /models/qwen2.5-1.5b-instruct-q6_k.gguf" | sha256sum -c -
 
-# Default server configuration (the base image starts the server automatically)
+# Lock down permissions (read-only file)
+RUN chmod 0444 /models/qwen2.5-1.5b-instruct-q6_k.gguf
+
+# --- Final stage: llama-cpp server image (pinned digest) ---
+FROM ghcr.io/abetlen/llama-cpp-python:v0.3.5@sha256:8528cd3c39357e4138a4fd80f17449b6617206e56f0397016c5cb536f89a87d8
+
+# OCI metadata (helps traceability/SBOM)
+LABEL org.opencontainers.image.title="llama-cpp-python + Qwen2.5-1.5B-Instruct" \
+  org.opencontainers.image.description="Hardened container with pre-baked GGUF model, non-root, healthcheck" \
+  org.opencontainers.image.source="https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF" \
+  org.opencontainers.image.licenses="Apache-2.0"
+
+# Create non-root user/group with fixed UID/GID (Debian/Ubuntu-friendly)
+RUN set -eux; \
+  if ! command -v useradd >/dev/null 2>&1; then \
+  apt-get update && apt-get install -y --no-install-recommends passwd && rm -rf /var/lib/apt/lists/*; \
+  fi; \
+  groupadd --gid 10001 appgrp || true; \
+  SHELL_PATH="/usr/sbin/nologin"; [ -x "$SHELL_PATH" ] || SHELL_PATH="/sbin/nologin"; \
+  id -u appuser >/dev/null 2>&1 || \
+  useradd --system --no-create-home \
+  --home-dir /nonexistent \
+  --uid 10001 --gid 10001 \
+  --shell "$SHELL_PATH" \
+  appuser
+
+# Model location and server env
 ENV MODEL=/models/qwen2.5-1.5b-instruct-q6_k.gguf \
-    HOST=0.0.0.0 \
-    PORT=8000
+  HOST=0.0.0.0 \
+  PORT=8000
 
+# Copy in model from builder (read-only perms already set)
+WORKDIR /models
+COPY --chown=appuser:appgrp --from=model-fetcher /models/qwen2.5-1.5b-instruct-q6_k.gguf /models/
+
+# Drop to non-root
+USER 10001:10001
+
+# Minimal runtime exposure
 EXPOSE 8000
 
-# No CMD needed: base image defines entrypoint to run `llama_cpp.server`
+# Healthcheck against OpenAI-compatible route (adjust if needed)
+HEALTHCHECK --interval=60s --timeout=3s --start-period=20s --retries=5 \
+  CMD python -c "import os,urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.environ.get(\"PORT\",\"8000\")}/v1/models').read()" || exit 1
 
+# Base image already sets the entrypoint to start the server.
+# No CMD/ENTRYPOINT override required.

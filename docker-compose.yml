@@ -138,6 +138,9 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=64m
+      - /home/appuser:rw,nosuid,nodev,size=16m
     deploy:
       resources:
         limits:
