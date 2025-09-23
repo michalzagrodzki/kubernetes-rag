@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: backend-pdfs, namespace: rag-dev }
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: { requests: { storage: 1Gi } }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: backend-config, namespace: rag-dev }
+data:
+  TEI_BASE_URL: "http://embedding.rag-dev.svc.cluster.local"
+  LOCAL_LLM_BASE_URL: "http://llm.rag-dev.svc.cluster.local/v1"
+  # add others mirrored from your .env
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: backend, namespace: rag-dev }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: backend } }
+  template:
+    metadata: { labels: { app: backend } }
+    spec:
+      securityContext: { runAsNonRoot: true }
+      containers:
+        - name: app
+          image: rag-backend:dev
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8000, name: http }]
+          envFrom:
+            - configMapRef: { name: backend-config }
+            - secretRef: { name: db-secrets }
+          volumeMounts:
+            - { name: pdfs, mountPath: /app/pdfs }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 15
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits:   { cpu: "2",    memory: "2Gi" }
+      volumes:
+        - name: pdfs
+          persistentVolumeClaim: { claimName: backend-pdfs }
+
+---
+apiVersion: v1
+kind: Service
+metadata: { name: backend, namespace: rag-dev }
+spec:
+  selector: { app: backend }
+  ports: [{ name: http, port: 8000, targetPort: 8000 }]

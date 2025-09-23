@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: embedding, namespace: rag-dev }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: embedding } }
+  template:
+    metadata: { labels: { app: embedding } }
+    spec:
+      containers:
+        - name: tei
+          image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+          # Will run under qemu on M1; slower but faithful to your compose
+          ports: [{ containerPort: 80, name: http }]
+          env:
+            - { name: MODEL_ID, value: "/data/nomic-embed-text-v1.5" }
+          volumeMounts:
+            - { name: model, mountPath: /data, readOnly: true }
+          resources:
+            requests: { cpu: "1", memory: "4Gi" }
+            limits:   { cpu: "10", memory: "16Gi" }
+      volumes:
+        - name: model
+          hostPath:  # quick dev; switch to PVC if you prefer
+            path: /Users/$USER/rag-tei/models
+            type: Directory
+
+---
+apiVersion: v1
+kind: Service
+metadata: { name: embedding, namespace: rag-dev }
+spec:
+  selector: { app: embedding }
+  ports: [{ name: http, port: 80, targetPort: 80 }]

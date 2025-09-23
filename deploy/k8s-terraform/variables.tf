@@ -96,6 +96,36 @@ variable "frontend_replicas" {
   default = 2
 }
 
+variable "backend_service_type" {
+  description = "Service type for the backend API"
+  type        = string
+  default     = "ClusterIP"
+}
+
+variable "frontend_service_type" {
+  description = "Service type for the frontend"
+  type        = string
+  default     = "ClusterIP"
+}
+
+variable "backend_service_annotations" {
+  description = "Optional annotations to attach to the backend service"
+  type        = map(string)
+  default     = {}
+}
+
+variable "frontend_service_annotations" {
+  description = "Optional annotations to attach to the frontend service"
+  type        = map(string)
+  default     = {}
+}
+
+variable "frontend_backend_url" {
+  description = "Override for the frontend proxy BACKEND_URL. Defaults to the in-cluster backend service URL when null."
+  type        = string
+  default     = null
+}
+
 variable "llm_replicas" {
   description = "Replicas for local LLM server"
   type        = number

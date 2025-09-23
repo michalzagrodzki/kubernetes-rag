@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny, namespace: rag-dev }
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress","Egress"]
+
+---
+# Backend can talk to Postgres, Embedding, LLM; Frontend can call Backend; Ingress reaches Frontend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-app-flows, namespace: rag-dev }
+spec:
+  podSelector: { matchLabels: { app: backend } }
+  policyTypes: ["Egress","Ingress"]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: frontend } }
+      ports: [{ port: 8000 }]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: postgres } } }]
+      ports: [{ port: 5432 }]
+    - to: [{ podSelector: { matchLabels: { app: embedding } } }]
+      ports: [{ port: 80 }]
+    - to: [{ podSelector: { matchLabels: { app: llm } } }]
+      ports: [{ port: 8000 }]

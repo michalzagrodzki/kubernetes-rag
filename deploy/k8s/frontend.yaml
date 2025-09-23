@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: frontend, namespace: rag-dev }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: frontend } }
+  template:
+    metadata: { labels: { app: frontend } }
+    spec:
+      securityContext: { runAsNonRoot: true }
+      containers:
+        - name: web
+          image: rag-frontend:dev
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8080, name: http }]
+          env:
+            - name: BACKEND_URL
+              value: http://backend.rag-dev.svc.cluster.local:8000
+          resources:
+            requests: { cpu: "200m", memory: "256Mi" }
+            limits:   { cpu: "1",    memory: "512Mi" }
+
+---
+apiVersion: v1
+kind: Service
+metadata: { name: frontend, namespace: rag-dev }
+spec:
+  selector: { app: frontend }
+  ports: [{ name: http, port: 80, targetPort: 8080 }]
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rag
+  namespace: rag-dev
+  annotations:
+    cert-manager.io/cluster-issuer: selfsigned-issuer
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [ "rag.localtest.me" ]
+      secretName: rag-tls
+  rules:
+    - host: rag.localtest.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: frontend, port: { number: 80 } } }

@@ -166,6 +166,7 @@ resource "kubernetes_service_v1" "backend" {
     labels = {
       app = "rag-backend"
     }
+    annotations = var.backend_service_annotations
   }
   spec {
     selector = {
@@ -176,6 +177,7 @@ resource "kubernetes_service_v1" "backend" {
       port        = 8000
       target_port = 8000
     }
+    type = var.backend_service_type
   }
 }
 
@@ -346,6 +348,16 @@ resource "kubernetes_deployment_v1" "frontend" {
             container_port = 8080
           }
 
+          env {
+            name  = "BACKEND_URL"
+            value = var.frontend_backend_url != null ? var.frontend_backend_url : format(
+              "http://%s.%s.svc.cluster.local:%d",
+              kubernetes_service_v1.backend.metadata[0].name,
+              kubernetes_namespace_v1.ns.metadata[0].name,
+              kubernetes_service_v1.backend.spec[0].port[0].port
+            )
+          }
+
           resources {
             requests = {
               cpu    = "50m"
@@ -368,6 +380,7 @@ resource "kubernetes_service_v1" "frontend" {
     labels = {
       app = "rag-frontend"
     }
+    annotations = var.frontend_service_annotations
   }
   spec {
     selector = {
@@ -378,6 +391,7 @@ resource "kubernetes_service_v1" "frontend" {
       port        = 80
       target_port = 8080
     }
+    type = var.frontend_service_type
   }
 }
 
