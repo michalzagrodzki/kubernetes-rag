@@ -1,5 +1,5 @@
 # Build stage
-FROM node:alpine3.21@sha256:ae24564bf16e0b01f5c96a31e8659b35b3e242c75e0589366c666d39143a22d2 AS build
+FROM node:current-alpine3.22@sha256:3e843c608bb5232f39ecb2b25e41214b958b0795914707374c8acc28487dea17 AS build
 
 RUN mkdir -p /app && chown -R node:node /app
 WORKDIR /app
