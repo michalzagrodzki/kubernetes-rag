@@ -123,12 +123,12 @@ kubectl annotate sc local-path storageclass.kubernetes.io/is-default-class="true
 
 # Ingress (ingress-nginx)
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm install ing ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace \
-  --set controller.publishService.enabled=true
+helm install ing ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace --set controller.publishService.enabled=true
 
 # TLS (cert-manager + self-signed ClusterIssuer)
 helm repo add jetstack https://charts.jetstack.io
-helm install cert jetstack/cert-manager -n cert-manager --create-namespace --set installCRDs=true
+helm upgrade --install cert jetstack/cert-manager -n cert-manager --create-namespace --set crds.enabled=true
+
 cat <<'EOF' | kubectl apply -f -
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -139,8 +139,7 @@ EOF
 
 # Metrics API (for HPA later)
 helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
-helm install metrics metrics-server/metrics-server -n kube-system \
-  --set args={--kubelet-insecure-tls}
+helm install metrics metrics-server/metrics-server -n kube-system --set args={--kubelet-insecure-tls}
 ```
 
 > Optional but recommended for “cloud-like” behavior:
