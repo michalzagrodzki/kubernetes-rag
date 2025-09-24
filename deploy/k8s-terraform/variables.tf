@@ -7,7 +7,19 @@ variable "kubeconfig_path" {
 variable "kubeconfig_context" {
   description = "kubectl context to use"
   type        = string
-  default     = null
+  default     = "kind-rag-dev"
+}
+
+variable "ingress_class" {
+  description = "Ingress class name"
+  type        = string
+  default     = "nginx"
+}
+
+variable "metallb_pool" {
+  description = "Address pool for MetalLB (kind often uses 172.18.0.0/16)"
+  type        = string
+  default     = "172.18.255.1-172.18.255.250"
 }
 
 variable "namespace" {
