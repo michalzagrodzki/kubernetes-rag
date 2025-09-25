@@ -19,3 +19,7 @@ Thumbs.db
 # Optional local tooling dirs
 /supabase/
 /.env.postgres
+
+deploy/k8s-terraform/.terraform/
+deploy/k8s-terraform/terraform.tfstate*
+deploy/k8s-terraform/terraform.tfstate.*.backup

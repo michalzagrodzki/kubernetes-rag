@@ -79,11 +79,13 @@ variable "tei_model_id" {
 variable "frontend_host" {
   description = "Hostname for frontend ingress (e.g., app.example.com)"
   type        = string
+  default     = null
 }
 
 variable "api_host" {
   description = "Hostname for API ingress (e.g., api.example.com)"
   type        = string
+  default     = null
 }
 
 variable "enable_tls" {

@@ -20,12 +20,15 @@ Quick Start
    - Backend: docker build -f deploy/containers/Dockerfile.backend -t <registry>/rag-backend:<tag> .
    - Frontend: docker build -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=https://api.example.com -t <registry>/rag-frontend:<tag> ./path-to-frontend
 
-2) Initialize Terraform:
+2) Generate `terraform.auto.tfvars` from your environment (expects `FRONTEND_HOST` and `API_HOST` in the repo `.env`):
+   - ./deploy/k8s-terraform/scripts/generate-tfvars.sh
+
+3) Initialize Terraform:
    - cd deploy/k8s-terraform
    - terraform init
 
-3) Plan and apply:
-   - terraform plan -var "backend_image=<registry>/rag-backend:<tag>" -var "frontend_image=<registry>/rag-frontend:<tag>" -var "api_host=api.example.com" -var "frontend_host=app.example.com" -var "postgres_url=..." -var "postgres_server=..." -var "postgres_user=..." -var "postgres_password=..." -var "postgres_db=..." -var "enable_tls=false"
+4) Plan and apply:
+   - terraform plan -var "backend_image=<registry>/rag-backend:<tag>" -var "frontend_image=<registry>/rag-frontend:<tag>" -var "postgres_url=..." -var "postgres_server=..." -var "postgres_user=..." -var "postgres_password=..." -var "postgres_db=..." -var "enable_tls=false"
    - terraform apply ... (same vars)
 
 Notes
