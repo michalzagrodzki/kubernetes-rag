@@ -1,20 +1,25 @@
 ############################
 # Namespaces
 ############################
-resource "kubernetes_namespace_v1" "ingress_nginx" { 
-  metadata { name = "ingress-nginx" } 
+resource "kubernetes_namespace_v1" "ingress_nginx" {
+  metadata { name = "ingress-nginx" }
+  depends_on = [kind_cluster.rag]
 }
-resource "kubernetes_namespace_v1" "cert_manager"  { 
-  metadata { name = "cert-manager"  } 
+resource "kubernetes_namespace_v1" "cert_manager" {
+  metadata { name = "cert-manager" }
+  depends_on = [kind_cluster.rag]
 }
-resource "kubernetes_namespace_v1" "monitoring"    { 
-  metadata { name = "monitoring"    } 
+resource "kubernetes_namespace_v1" "monitoring" {
+  metadata { name = "monitoring" }
+  depends_on = [kind_cluster.rag]
 }
-resource "kubernetes_namespace_v1" "metallb"       { 
-  metadata { name = "metallb-system"} 
+resource "kubernetes_namespace_v1" "metallb" {
+  metadata { name = "metallb-system" }
+  depends_on = [kind_cluster.rag]
 }
-resource "kubernetes_namespace_v1" "rag"           { 
-  metadata { name = "rag-dev"       } 
+resource "kubernetes_namespace_v1" "rag" {
+  metadata { name = "rag-dev" }
+  depends_on = [kind_cluster.rag]
 }
 
 ############################
@@ -36,8 +41,9 @@ spec:
 YAML
 }
 resource "kubectl_manifest" "local_path_sc" {
-  for_each  = toset(data.kubectl_file_documents.local_path_sc.documents)
-  yaml_body = each.value
+  for_each   = toset(data.kubectl_file_documents.local_path_sc.documents)
+  yaml_body  = each.value
+  depends_on = [kind_cluster.rag]
 }
 
 ############################
@@ -51,10 +57,13 @@ resource "helm_release" "ingress_nginx" {
 
   create_namespace = false
 
-  set {
-    name  = "controller.publishService.enabled"
-    value = "true"
-  }
+  set = [
+    {
+      name  = "controller.publishService.enabled"
+      value = "true"
+    }
+  ]
+  depends_on = [kind_cluster.rag]
 }
 
 ############################
@@ -68,15 +77,18 @@ resource "helm_release" "cert_manager" {
 
   create_namespace = false
 
-  set {
-    name  = "crds.enabled"
-    value = "true"
-  }
+  set = [
+    {
+      name  = "crds.enabled"
+      value = "true"
+    }
+  ]
+  depends_on = [kind_cluster.rag]
 }
 
 # Self-signed ClusterIssuer (dev)
 resource "kubectl_manifest" "selfsigned_issuer" {
-  yaml_body = <<YAML
+  yaml_body  = <<YAML
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -84,7 +96,7 @@ metadata:
 spec:
   selfSigned: {}
 YAML
-  depends_on = [helm_release.cert_manager]
+  depends_on = [kind_cluster.rag, helm_release.cert_manager]
 }
 
 ############################
@@ -96,10 +108,13 @@ resource "helm_release" "metrics_server" {
   chart      = "metrics-server"
   namespace  = "kube-system"
 
-  set {
-    name  = "args[0]"
-    value = "--kubelet-insecure-tls"
-  }
+  set = [
+    {
+      name  = "args[0]"
+      value = "--kubelet-insecure-tls"
+    }
+  ]
+  depends_on = [kind_cluster.rag]
 }
 
 ############################
@@ -110,10 +125,11 @@ resource "helm_release" "metallb" {
   repository = "https://metallb.github.io/metallb"
   chart      = "metallb"
   namespace  = kubernetes_namespace_v1.metallb.metadata[0].name
+  depends_on = [kind_cluster.rag]
 }
 
 resource "kubectl_manifest" "metallb_pool" {
-  yaml_body = <<YAML
+  yaml_body  = <<YAML
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -122,11 +138,11 @@ metadata:
 spec:
   addresses: ["${var.metallb_pool}"]
 YAML
-  depends_on = [helm_release.metallb]
+  depends_on = [kind_cluster.rag, helm_release.metallb]
 }
 
 resource "kubectl_manifest" "metallb_l2" {
-  yaml_body = <<YAML
+  yaml_body  = <<YAML
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
@@ -134,7 +150,7 @@ metadata:
   namespace: ${kubernetes_namespace_v1.metallb.metadata[0].name}
 spec: {}
 YAML
-  depends_on = [helm_release.metallb, kubectl_manifest.metallb_pool]
+  depends_on = [kind_cluster.rag, helm_release.metallb, kubectl_manifest.metallb_pool]
 }
 
 ############################
@@ -147,9 +163,21 @@ resource "helm_release" "cilium" {
   chart      = "cilium"
   namespace  = "kube-system"
 
-  set { name = "hubble.enabled",       value = "true" }
-  set { name = "hubble.relay.enabled", value = "true" }
-  set { name = "hubble.ui.enabled",    value = "true" }
+  set = [
+    {
+      name  = "hubble.enabled"
+      value = "true"
+    },
+    {
+      name  = "hubble.relay.enabled"
+      value = "true"
+    },
+    {
+      name  = "hubble.ui.enabled"
+      value = "true"
+    }
+  ]
+  depends_on = [kind_cluster.rag]
 }
 
 ############################
@@ -164,6 +192,7 @@ resource "kubectl_manifest" "app" {
   for_each  = toset(data.kubectl_path_documents.app_yamls.documents)
   yaml_body = each.value
   depends_on = [
+    kind_cluster.rag,
     helm_release.ingress_nginx,
     helm_release.cert_manager,
     kubectl_manifest.selfsigned_issuer,

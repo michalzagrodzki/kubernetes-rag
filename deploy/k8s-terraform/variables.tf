@@ -10,6 +10,12 @@ variable "kubeconfig_context" {
   default     = "kind-rag-dev"
 }
 
+variable "kind_cluster_name" {
+  description = "Name of the kind cluster to manage"
+  type        = string
+  default     = "rag-dev"
+}
+
 variable "ingress_class" {
   description = "Ingress class name"
   type        = string

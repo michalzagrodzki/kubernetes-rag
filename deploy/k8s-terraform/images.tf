@@ -12,9 +12,11 @@ set -euo pipefail
 docker build -f ${path.module}/../deploy/containers/Dockerfile.backend   -t rag-backend:dev  --platform linux/arm64 ${path.module}/..
 docker build -f ${path.module}/../deploy/containers/Dockerfile.frontend  -t rag-frontend:dev --platform linux/arm64 ${path.module}/..
 docker build -f ${path.module}/../deploy/containers/Dockerfile.llamacpp  -t rag-llm:dev      --platform linux/arm64 ${path.module}/..
-kind load docker-image rag-backend:dev  --name rag-dev
-kind load docker-image rag-frontend:dev --name rag-dev
-kind load docker-image rag-llm:dev      --name rag-dev
+kind load docker-image rag-backend:dev  --name ${var.kind_cluster_name}
+kind load docker-image rag-frontend:dev --name ${var.kind_cluster_name}
+kind load docker-image rag-llm:dev      --name ${var.kind_cluster_name}
 EOT
   }
+
+  depends_on = [kind_cluster.rag]
 }

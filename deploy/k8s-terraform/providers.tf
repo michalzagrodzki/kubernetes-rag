@@ -13,6 +13,10 @@ terraform {
       source  = "gavinbunney/kubectl"
       version = "~> 1.14"
     }
+    kind = {
+      source  = "tehcyx/kind"
+      version = ">= 0.5.1"
+    }
   }
 }
 
@@ -22,10 +26,9 @@ provider "kubernetes" {
 }
 
 provider "helm" {
-  kubernetes {
+  kubernetes = {
     config_path    = var.kubeconfig_path
     config_context = var.kubeconfig_context
-    load_config_file = true
   }
 }
 
@@ -35,3 +38,5 @@ provider "kubectl" {
   config_path      = var.kubeconfig_path
   config_context   = var.kubeconfig_context
 }
+
+provider "kind" {}
