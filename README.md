@@ -120,15 +120,21 @@ kubectl get nodes -o wide
 # Default storage (local-path)
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 kubectl annotate sc local-path storageclass.kubernetes.io/is-default-class="true" --overwrite
+```
 
+```bash
 # Ingress (ingress-nginx)
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm install ing ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace --set controller.publishService.enabled=true
+```
 
+```bash
 # TLS (cert-manager + self-signed ClusterIssuer)
 helm repo add jetstack https://charts.jetstack.io
 helm upgrade --install cert jetstack/cert-manager -n cert-manager --create-namespace --set crds.enabled=true
+```
 
+```bash
 cat <<'EOF' | kubectl apply -f -
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -136,7 +142,9 @@ metadata: { name: selfsigned-issuer }
 spec:
   selfSigned: {}
 EOF
+```
 
+```bash
 # Metrics API (for HPA later)
 helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
 helm install metrics metrics-server/metrics-server -n kube-system --set args={--kubelet-insecure-tls}
