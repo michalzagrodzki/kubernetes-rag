@@ -107,76 +107,31 @@ Spin up a local Kubernetes cluster on macOS (Apple Silicon supported) that’s c
 brew install kind kubectl helm
 ```
 
-Create the cluster, start from the root folder of project:
+### Provision the stack with Terraform
 
 ```bash
-kind create cluster --config deploy/k8s/kind-cluster.yaml
-kubectl get nodes -o wide
+# 1. Export ingress hostnames (or add them to .env and run the helper script)
+export FRONTEND_HOST=app.localtest.me
+export API_HOST=api.localtest.me
+
+# Optional: generate terraform.auto.tfvars from a .env file
+./deploy/k8s-terraform/scripts/generate-tfvars.sh
+
+# 2. Initialize and apply
+cd deploy/k8s-terraform
+terraform init -upgrade
+terraform apply \
+  -var "backend_image=rag-backend:dev" \
+  -var "frontend_image=rag-frontend:dev" \
+  -var "postgres_url=postgresql+asyncpg://..." \
+  -var "postgres_server=..." \
+  -var "postgres_user=..." \
+  -var "postgres_password=..." \
+  -var "postgres_db=..." \
+  -var "enable_tls=false"
 ```
 
-### 2) Install base add-ons (Ingress, Storage, TLS, Metrics)
-
-```bash
-# Default storage (local-path)
-kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
-kubectl annotate sc local-path storageclass.kubernetes.io/is-default-class="true" --overwrite
-```
-
-```bash
-# Ingress (ingress-nginx)
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm install ing ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace --set controller.publishService.enabled=true
-```
-
-```bash
-# TLS (cert-manager + self-signed ClusterIssuer)
-helm repo add jetstack https://charts.jetstack.io
-helm upgrade --install cert jetstack/cert-manager -n cert-manager --create-namespace --set crds.enabled=true
-```
-
-```bash
-cat <<'EOF' | kubectl apply -f -
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata: { name: selfsigned-issuer }
-spec:
-  selfSigned: {}
-EOF
-```
-
-```bash
-# Metrics API (for HPA later)
-helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
-helm install metrics metrics-server/metrics-server -n kube-system --set args={--kubelet-insecure-tls}
-```
-
-> Optional but recommended for “cloud-like” behavior:
->
-> * **MetalLB** (LoadBalancer simulation)
-> * **CNI with NetworkPolicies** (e.g., Cilium)
-> * **Monitoring** (kube-prometheus-stack)
-
-### 3) Build your images and load them into kind
-
-Build for **linux/arm64** (Apple Silicon):
-
-```bash
-# Backend
-docker build -f deploy/containers/Dockerfile.backend -t rag-backend:dev --platform linux/arm64 .
-# Frontend
-docker build -f deploy/containers/Dockerfile.frontend -t rag-frontend:dev --platform linux/arm64 .
-# LLM (llama.cpp)
-docker build -f deploy/containers/Dockerfile.llamacpp -t rag-llm:dev --platform linux/arm64 .
-
-# Load local images into the kind cluster
-kind load docker-image rag-backend:dev --name rag-dev
-kind load docker-image rag-frontend:dev --name rag-dev
-kind load docker-image rag-llm:dev --name rag-dev
-```
-
-**Embeddings note (Apple Silicon):** if you use an x86\_64 embeddings image (e.g., TEI cpu builds), Docker Desktop will emulate it; it runs but is slower. You don’t need to build it—Kubernetes can pull it as-is. If you prefer native ARM later, swap to an ARM-friendly embedding server and update the `Deployment`.
-
-### 4) Prepare model/data folders (if mounting local data)
+### Prepare model/data folders (if mounting local data)
 
 If your manifests mount local model directories (e.g., for llama.cpp or embeddings), ensure they exist and are populated as per your current Docker workflow:
 
@@ -185,44 +140,15 @@ mkdir -p ~/rag-chat/models
 mkdir -p ~/rag-tei/models
 ```
 
-### 5) Apply Kubernetes manifests
-
-The manifests are under `deploy/k8s/` (adjust names if your repo differs):
-
-```
-deploy/k8s/
-├─ 00-namespace.yaml
-├─ 10-secrets.yaml
-├─ 20-postgres.yaml
-├─ 30-backend.yaml
-├─ 40-embeddings.yaml
-├─ 50-llm.yaml
-└─ 60-frontend-and-ingress.yaml
-```
-
-Deploy in order (or all at once):
-
-```bash
-kubectl apply -f deploy/k8s/00-namespace.yaml
-kubectl apply -f deploy/k8s/10-secrets.yaml
-kubectl apply -f deploy/k8s/20-postgres.yaml
-kubectl apply -f deploy/k8s/30-backend.yaml
-kubectl apply -f deploy/k8s/40-embeddings.yaml
-kubectl apply -f deploy/k8s/50-llm.yaml
-kubectl apply -f deploy/k8s/60-frontend-and-ingress.yaml
-
-kubectl -n rag-dev get pods,svc
-```
-
 ### 6) Access the app
 
-The Ingress is configured for `rag.localtest.me` with a self-signed cert (issued by `selfsigned-issuer`).
+The Ingress is configured for `app.rag.me` with a self-signed cert (issued by `selfsigned-issuer`).
 
 ```bash
-open https://rag.localtest.me
+open https://app.rag.me
 ```
 
-If you prefer without TLS during testing, remove the TLS section from the Ingress and use `http://rag.localtest.me`.
+If you prefer without TLS during testing, remove the TLS section from the Ingress and use `http://app.rag.me`.
 
 ### 7) Troubleshooting
 
