@@ -21,22 +21,28 @@ terraform {
 }
 
 provider "kubernetes" {
-  config_path    = var.kubeconfig_path
-  config_context = var.kubeconfig_context
+  host                   = kind_cluster.rag.endpoint
+  client_certificate     = kind_cluster.rag.client_certificate
+  client_key             = kind_cluster.rag.client_key
+  cluster_ca_certificate = kind_cluster.rag.cluster_ca_certificate
 }
 
 provider "helm" {
-  kubernetes = {
-    config_path    = var.kubeconfig_path
-    config_context = var.kubeconfig_context
+  kubernetes {
+    host                   = kind_cluster.rag.endpoint
+    client_certificate     = kind_cluster.rag.client_certificate
+    client_key             = kind_cluster.rag.client_key
+    cluster_ca_certificate = kind_cluster.rag.cluster_ca_certificate
   }
 }
 
 # (Optional) kubectl provider if you apply raw YAMLs:
 provider "kubectl" {
-  load_config_file = true
-  config_path      = var.kubeconfig_path
-  config_context   = var.kubeconfig_context
+  host                   = kind_cluster.rag.endpoint
+  client_certificate     = kind_cluster.rag.client_certificate
+  client_key             = kind_cluster.rag.client_key
+  cluster_ca_certificate = kind_cluster.rag.cluster_ca_certificate
+  load_config_file       = false
 }
 
 provider "kind" {}

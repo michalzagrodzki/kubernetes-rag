@@ -21,5 +21,6 @@ Thumbs.db
 /.env.postgres
 
 deploy/k8s-terraform/.terraform/
+deploy/k8s-terraform/terraform.auto.tfvars
 deploy/k8s-terraform/terraform.tfstate*
 deploy/k8s-terraform/terraform.tfstate.*.backup

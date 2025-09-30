@@ -25,25 +25,20 @@ resource "kubernetes_namespace_v1" "rag" {
 ############################
 # Storage class for kind (local-path) – optional if you already have one
 ############################
-data "kubectl_file_documents" "local_path_sc" {
-  content = <<YAML
-apiVersion: v1
-kind: Namespace
-metadata: { name: local-path-storage }
----
-apiVersion: helm.cattle.io/v1
-kind: HelmChart
-metadata:
-  name: local-path-provisioner
-  namespace: kube-system
-spec:
-  chart: https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/chart/local-path-provisioner-0.0.24.tgz
-YAML
-}
-resource "kubectl_manifest" "local_path_sc" {
-  for_each   = toset(data.kubectl_file_documents.local_path_sc.documents)
-  yaml_body  = each.value
+resource "kubernetes_namespace_v1" "local_path_storage" {
+  metadata {
+    name = "local-path-storage"
+  }
   depends_on = [kind_cluster.rag]
+}
+
+resource "helm_release" "local_path_provisioner" {
+  name       = "local-path-provisioner"
+  repository = "https://charts.rancher.io"
+  chart      = "local-path-provisioner"
+  namespace  = "kube-system"
+
+  depends_on = [kind_cluster.rag, kubernetes_namespace_v1.local_path_storage]
 }
 
 ############################
@@ -57,12 +52,10 @@ resource "helm_release" "ingress_nginx" {
 
   create_namespace = false
 
-  set = [
-    {
-      name  = "controller.publishService.enabled"
-      value = "true"
-    }
-  ]
+  set {
+    name  = "controller.publishService.enabled"
+    value = "true"
+  }
   depends_on = [kind_cluster.rag]
 }
 
@@ -77,12 +70,10 @@ resource "helm_release" "cert_manager" {
 
   create_namespace = false
 
-  set = [
-    {
-      name  = "crds.enabled"
-      value = "true"
-    }
-  ]
+  set {
+    name  = "crds.enabled"
+    value = "true"
+  }
   depends_on = [kind_cluster.rag]
 }
 
@@ -108,12 +99,10 @@ resource "helm_release" "metrics_server" {
   chart      = "metrics-server"
   namespace  = "kube-system"
 
-  set = [
-    {
-      name  = "args[0]"
-      value = "--kubelet-insecure-tls"
-    }
-  ]
+  set {
+    name  = "args[0]"
+    value = "--kubelet-insecure-tls"
+  }
   depends_on = [kind_cluster.rag]
 }
 
@@ -163,20 +152,18 @@ resource "helm_release" "cilium" {
   chart      = "cilium"
   namespace  = "kube-system"
 
-  set = [
-    {
-      name  = "hubble.enabled"
-      value = "true"
-    },
-    {
-      name  = "hubble.relay.enabled"
-      value = "true"
-    },
-    {
-      name  = "hubble.ui.enabled"
-      value = "true"
-    }
-  ]
+  set {
+    name  = "hubble.enabled"
+    value = "true"
+  }
+  set {
+    name  = "hubble.relay.enabled"
+    value = "true"
+  }
+  set {
+    name  = "hubble.ui.enabled"
+    value = "true"
+  }
   depends_on = [kind_cluster.rag]
 }
 
