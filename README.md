@@ -1,30 +1,63 @@
-# RAG on Kubernetes (WIP)
+# RAG on Kubernetes
 
-This repository aims to demonstrate how to run a Retrieval-Augmented Generation (RAG) solution on Kubernetes end-to-end. It packages a simple RAG backend, container images, and deployment scaffolding to help you get from local code to a cluster.
+This repository shows how to ship a Retrieval-Augmented Generation (RAG) stack from a local developer workflow to a Kubernetes cluster. It includes a FastAPI backend wired to Postgres/pgvector, a React frontend, local llama.cpp and TEI services, plus the container and infrastructure assets required to run everything end-to-end.
 
-## Status
-- Work in progress: APIs, images, and manifests may change frequently.
-- Goal: a minimal, reproducible path to deploy a RAG stack on any Kubernetes (kind/minikube and managed clusters like GKE/EKS/AKS).
+## Added Value
+- Opinionated starting point for running a complete RAG workflow (ingest → embed → store → retrieve → generate) without relying on hosted APIs.
+- Reproducible Kubernetes deployment with manifests, secrets scaffolding, and Terraform automation for managed clusters.
+- Local-first developer workflow powered by Docker Compose, hot-reload servers, and shared model volumes so you can iterate quickly.
+- Model-serving targets for both embeddings (TEI) and llama.cpp-based LLMs that map cleanly between local and cluster environments.
 
-## What’s Included
-- Backend: FastAPI RAG service (`app.py`) with local llama.cpp-compatible LLM and Postgres/pgvector support.
-- Containers: Dockerfiles in `deploy/containers/` for backend and optional vLLM embeddings.
-- Infra scaffold: Terraform skeleton under `deploy/k8s-terraform/` to provision cluster resources (experimental).
-- Dev bits: `requirements.txt`, `Makefile`, and a basic project layout.
+## Technology Stack
+- **Backend**: FastAPI + SQLModel + LangChain, backed by Postgres with pgvector.
+- **Frontend**: React (Vite) + TypeScript + Tailwind + shadcn/ui + Zustand.
+- **RAG Services**: Text Embeddings Inference (nomic-embed-text) and llama.cpp running Qwen 2.5 1.5B Instruct.
+- **Orchestration**: Dockerfiles, Docker Compose, Kubernetes manifests, and Terraform modules under `deploy/`.
+- **Tooling**: Alembic migrations, pytest-ready backend, ESLint/TypeScript checks, Git LFS for model pulls.
 
-## Kubernetes Focus
-- Containerization: build images for the RAG components.
-- Configuration: inject secrets like `POSTGRES_URL` and other database credentials via `Secret` or external managers.
-- Storage: optional `PersistentVolumeClaim` for local PDFs or caches.
-- Networking: `Service` + (later) `Ingress`/`Gateway` for external access and TLS.
-- Scaling: set resource requests/limits and add HPA; GPU notes for embedding/LLM pods (planned).
+## Prerequisites
+- Docker (with BuildKit) and Docker Compose v2.
+- Python 3.11+ with `pip` or `uv` for backend dependencies.
+- Node.js 20+ and `npm` for the frontend.
+- `kubectl` plus a local cluster provider such as `kind` or `minikube` for Kubernetes testing.
+- Terraform (optional) when provisioning via `deploy/k8s-terraform/`.
+- Git LFS for downloading the embedding and LLM model weights.
 
-## Quick Start (WIP)
-- Prereqs: `docker`, `kubectl`, and a local cluster (`kind` or `minikube`).
-- Build backend image: `docker build -f deploy/containers/Dockerfile.backend -t rag-backend:dev .`
-- Load into kind: `kind load docker-image rag-backend:dev` (if using kind).
-- Apply manifests: Kubernetes manifests will be added under `deploy/k8s/` (coming soon). For now, follow progress in `deploy/` and `deploy/k8s-terraform/`.
-- Access: once deployed, expose via `kubectl port-forward` or Ingress and open `http://localhost:8000/docs`.
+## Environment Variables
+- `POSTGRES_URL` (required): SQLAlchemy URL including the `postgresql+psycopg` driver and pgvector parameters.
+- `POSTGRES_SERVER`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`: individual settings used when `POSTGRES_URL` is not provided.
+- `EMBEDDING_MODEL`, `EMBEDDINGS_BASE_URL`: switch embedding model or point to an OpenAI-compatible endpoint.
+- `TEI_BASE_URL`: default is the in-cluster or Compose TEI service.
+- `LOCAL_LLM_BASE_URL`, `LOCAL_LLM_MODEL`, `LOCAL_LLM_STREAMING`: configure llama.cpp/Qwen runtime.
+- `PDF_DIR`: location for uploaded or seeded PDFs mounted into the backend container.
+
+## How to Run
+### Local development
+1. Copy `.env.postgres.example` to `.env.postgres` and edit credentials if needed.
+2. Pull the embedding and LLM model weights with Git LFS (see "Build and Run (Docker)" for commands) so TEI and llama.cpp have local data.
+3. Start the supporting services: `docker compose up -d postgres_dev embedding_dev llm_dev`.
+4. Launch the backend: `cd backend && uvicorn app:app --reload --port 8000`. Hot reload works against the Compose services.
+5. Start the frontend: `cd frontend && npm install && npm run dev` (Vite serves on http://localhost:5173 by default).
+
+### Container images
+1. Build the backend image: `docker build -f deploy/containers/Dockerfile.backend -t rag-backend:dev .`.
+2. Build the frontend image: `docker build -f deploy/containers/Dockerfile.frontend --build-arg VITE_API_URL=http://localhost:8000 -t rag-frontend:dev .`.
+3. Build the llama.cpp image (optional for local GPU/CPU inference): `docker build -f deploy/containers/Dockerfile.llamacpp -t rag-llm:qwen2.5-1.5b .`.
+
+### Kubernetes (kind or minikube)
+1. Provision a cluster (example): `kind create cluster --config deploy/k8s/kind-cluster.yaml`.
+2. Load or push your images so the cluster can pull them (`kind load docker-image rag-backend:dev rag-frontend:dev`).
+3. Update `deploy/k8s/secrets.yaml` with your database credentials and ensure the TEI/LLM ConfigMap values match your deployment.
+4. Apply the manifests: `kubectl apply -f deploy/k8s/` (namespace, Postgres, embeddings, LLM, backend, frontend, network policies).
+5. Port-forward or expose the services. For example, `kubectl port-forward svc/backend -n rag-dev 8000:8000` and browse to `http://localhost:8000/docs`.
+
+## Project Structure
+- `backend/`: FastAPI app (`app.py`), SQLModel schemas, services, and Alembic migrations.
+- `frontend/`: React + Vite UI with Zustand state and shadcn/ui components.
+- `deploy/containers/`: Dockerfiles for backend, frontend, and llama.cpp runtime.
+- `deploy/k8s/`: Kubernetes manifests for local clusters (namespace, secrets, Deployments, Services, PVCs, NetworkPolicies).
+- `deploy/k8s-terraform/`: Terraform modules for provisioning equivalent resources in managed Kubernetes.
+- `docker-compose.yml`: local stack with Postgres, TEI, llama.cpp, backend, and frontend services.
 
 ## Build and Run (Docker)
 
