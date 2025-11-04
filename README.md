@@ -59,6 +59,23 @@ This repository shows how to ship a Retrieval-Augmented Generation (RAG) stack f
 - `deploy/k8s-terraform/`: Terraform modules for provisioning equivalent resources in managed Kubernetes.
 - `docker-compose.yml`: local stack with Postgres, TEI, llama.cpp, backend, and frontend services.
 
+### Directory Tree
+```
+.
+├── backend/                 FastAPI app, models, services, and migrations
+│   ├── app.py               FastAPI entrypoint wiring routes and dependencies
+│   └── alembic/             Database migration scripts and env configuration
+├── frontend/                React + Vite client with Zustand stores and UI components
+│   ├── src/                 Application code, routes, and shared utilities
+│   └── public/              Static assets served by Vite
+├── deploy/
+│   ├── containers/          Dockerfiles for backend, frontend, llama.cpp, and embeddings
+│   ├── k8s/                 Kubernetes manifests (namespace, workloads, services, secrets)
+│   └── k8s-terraform/       Terraform modules and scripts for provisioning clusters
+├── docker-compose.yml       Local development stack definition
+└── readme.md                Project overview and operating instructions
+```
+
 ## Build and Run (Docker)
 
 ### Nomic Embeddings (CPU-only):
