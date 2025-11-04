@@ -2,6 +2,10 @@
 from typing import List, Optional
 import httpx
 from langchain.embeddings.base import Embeddings
+import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TEIEmbeddings(Embeddings):
@@ -18,11 +22,31 @@ class TEIEmbeddings(Embeddings):
         self.client = httpx.Client(base_url=base_url, headers=headers, timeout=timeout)
         # Send to TEI in smaller requests to avoid 413s
         self.batch_size = max(1, batch_size)
+        self.base_url = base_url
+        self.max_retries = 5
+        self.retry_delay = 2
 
     def _post_embed(self, batch: List[str]) -> List[List[float]]:
-        r = self.client.post("/embed", json={"inputs": batch})
-        r.raise_for_status()
-        payload = r.json()
+        for attempt in range(self.max_retries):
+            try:
+                r = self.client.post("/embed", json={"inputs": batch})
+                r.raise_for_status()
+                payload = r.json()
+                return self._extract_embeddings(payload)
+            except (httpx.ConnectError, httpx.HTTPError) as e:
+                if attempt < self.max_retries - 1:
+                    wait_time = self.retry_delay * (attempt + 1)
+                    logger.warning(
+                        f"TEI service connection failed (attempt {attempt + 1}/{self.max_retries}). "
+                        f"Retrying in {wait_time}s... Error: {e}"
+                    )
+                    time.sleep(wait_time)
+                else:
+                    logger.error(f"TEI service unavailable after {self.max_retries} attempts")
+                    raise
+
+    def _extract_embeddings(self, payload) -> List[List[float]]:
+        """Extract embeddings from various TEI response formats."""
         # Support multiple common response shapes
         if isinstance(payload, dict):
             if "embeddings" in payload:
