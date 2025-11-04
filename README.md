@@ -16,7 +16,10 @@ This repository shows how to ship a Retrieval-Augmented Generation (RAG) stack f
 - **Tooling**: Alembic migrations, pytest-ready backend, ESLint/TypeScript checks, Git LFS for model pulls.
 
 ## Prerequisites
-- Docker (with BuildKit) and Docker Compose v2.
+- **Docker (with BuildKit) and Docker Compose v2**
+  - **Important**: Configure Docker Desktop (or equivalent) with at least **16 GB RAM** (recommended 24 GB) and **10 CPUs**
+  - The embedding and LLM services are resource-intensive and will fail or perform poorly with less memory
+  - On macOS: Docker Desktop → Preferences → Resources → increase Memory slider and CPU allocation
 - Python 3.12+ with `pip` or `uv` for backend dependencies (Python 3.9 is not supported due to union type syntax).
 - Node.js 20+ and `npm` for the frontend.
 - `kubectl` plus a local cluster provider such as `kind` or `minikube` for Kubernetes testing.
@@ -229,14 +232,38 @@ Feedback and PRs welcome. Please treat this as a moving target and include your 
    docker compose up backend_dev frontend_dev
    ```
 
-6. **Access the application**:
-   - **Frontend**: http://localhost:8080
+   ⏳ **IMPORTANT**: After starting, the embedding service (`embedding_dev`) needs to **warm up the model**. This takes **3-5 minutes** on first startup. You'll see logs like:
+   ```
+   embedding_dev | Starting model backend
+   embedding_dev | Warming up model
+   embedding_dev | Ready
+   ```
+   **Wait for "Ready" to appear before proceeding**. The backend will automatically retry if the embedding service isn't ready yet.
+
+6. **Upload a document** (required before asking questions):
+   - Open **Swagger UI**: http://localhost:8000/docs
+   - Find the `POST /v1/upload` endpoint
+   - Click "Try it out"
+   - Upload a PDF file
+   - Click "Execute"
+   - You should see a response with the number of chunks processed
+
+   Without documents in the system, the RAG pipeline has nothing to retrieve and answer questions from.
+
+7. **Access the application**:
+   - **Frontend (Chat UI)**: http://localhost:8080
    - **Backend API**: http://localhost:8000
-   - **Swagger UI (API Documentation)**: http://localhost:8000/docs
+   - **Swagger UI (API Testing & Document Upload)**: http://localhost:8000/docs
    - **ReDoc (Alternative API Documentation)**: http://localhost:8000/redoc
    - **OpenAPI Schema**: http://localhost:8000/openapi.json
 
-7. **Data management**:
+8. **Ask questions** (through the frontend):
+   - Open http://localhost:8080
+   - Type your question related to the uploaded documents
+   - ⏳ **Note**: First query takes **2-3 minutes** while the LLM loads and processes. Subsequent queries are faster.
+   - The system retrieves relevant document chunks, embeds them, and generates an answer using the Qwen LLM
+
+9. **Data management**:
    - Data is stored in the `pgdata` Docker volume
    - Reset the database: `docker compose down --volumes`
    - View logs: `docker compose logs -f`
@@ -248,17 +275,23 @@ When running `docker compose up`, the following endpoints are available on your 
 
 | Service | URL | Purpose |
 |---------|-----|---------|
-| Frontend | http://localhost:8080 | React UI for the RAG application |
+| **Frontend (Chat UI)** | **http://localhost:8080** | **Main application - chat with your documents** |
 | Backend API | http://localhost:8000 | FastAPI backend (base endpoint) |
-| **Swagger UI** | **http://localhost:8000/docs** | **Interactive API documentation - try out endpoints here** |
+| **Swagger UI** | **http://localhost:8000/docs** | **Upload documents & test API endpoints** |
 | ReDoc | http://localhost:8000/redoc | Alternative API documentation (read-only) |
 | OpenAPI Schema | http://localhost:8000/openapi.json | Raw OpenAPI specification |
 
-**Swagger UI** (`/docs`) is the most useful for testing the API. You can:
+**Quick Start Flow**:
+1. Wait for embedding service to be "Ready" (3-5 minutes)
+2. Upload a PDF via Swagger UI: http://localhost:8000/docs → `POST /v1/upload`
+3. Open frontend: http://localhost:8080
+4. Ask questions about your documents (first query takes 2-3 minutes)
+
+**Swagger UI** (`/docs`) is essential for document uploads. You can:
+- Upload PDF documents via `POST /v1/upload` endpoint
 - Browse all available endpoints
 - Test endpoints directly in the browser
 - View request/response schemas
-- See example data formats
 
 ### Common Issues & Fixes
 
@@ -277,6 +310,18 @@ When running `docker compose up`, the following endpoints are available on your 
 **Issue**: `Extra inputs are not permitted [type=extra_forbidden]`
 - **Cause**: Missing `database_url` in config or environment variable mismatch
 - **Fix**: Ensure `DATABASE_URL` is set in `.env` (or ignored in config)
+
+**Issue**: `httpx.ConnectError: [Errno 111] Connection refused` when uploading documents
+- **Cause**: Embedding service is still warming up or not responding
+- **Fix**: Wait for "Ready" message in embedding_dev logs. The backend retries automatically up to 5 times with exponential backoff.
+
+**Issue**: Embedding service crashes with exit code 137 (OOM kill)
+- **Cause**: Docker Desktop doesn't have enough memory allocated
+- **Fix**: Increase Docker memory to at least 16 GB (24 GB recommended) in Docker Desktop Preferences → Resources
+
+**Issue**: LLM takes a very long time to respond or frontend seems frozen
+- **Cause**: Normal behavior on first query - the LLM model is loading into memory
+- **Fix**: First query takes 2-3 minutes. Subsequent queries are faster. Be patient.
 
 The Compose stack uses the `pgvector/pgvector:16` image for persistence and shares credentials with the backend via `.env.postgres`.
 
