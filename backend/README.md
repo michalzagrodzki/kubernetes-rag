@@ -20,9 +20,10 @@ Two env files are used during development:
 1. `backend/.env` — application settings (retrieval tunables, service URLs). Adjust or create your own copy.
 2. `.env.postgres` — Postgres connection info shared by Docker Compose, Alembic, and the backend.
 
-Start by copying the template:
+Start by copying the templates:
 
 ```bash
+cp .env.sample .env
 cp .env.postgres.example .env.postgres
 ```
 

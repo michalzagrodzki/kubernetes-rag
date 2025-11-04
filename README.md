@@ -32,7 +32,70 @@ This repository shows how to ship a Retrieval-Augmented Generation (RAG) stack f
 - `PDF_DIR`: location for uploaded or seeded PDFs mounted into the backend container.
 
 ## How to Run
-### Local development
+
+### Docker Compose (Full Stack)
+Run the entire application stack (backend, frontend, Postgres, embeddings, and LLM) with a single command:
+
+1. **Prepare environment files**:
+   ```bash
+   # Copy and configure Postgres credentials
+   cp .env.postgres.example .env.postgres
+
+   # Copy and configure backend environment
+   cp backend/.env.example backend/.env
+   ```
+   Edit these files if you need to change default credentials or service endpoints.
+
+2. **Pull model weights** (required for embeddings and LLM services):
+   ```bash
+   # Nomic embeddings model
+   mkdir -p ~/rag-tei/models
+   cd ~/rag-tei/models
+   git lfs install
+   git clone https://huggingface.co/nomic-ai/nomic-embed-text-v1.5
+   cd nomic-embed-text-v1.5 && git lfs pull && cd ..
+
+   # Update config.json inside nomic model with these values:
+   # "hidden_size": 768, "num_attention_heads": 12, "num_hidden_layers": 12
+
+   # Qwen LLM model
+   mkdir -p ~/rag-chat/models
+   cd ~/rag-chat/models
+   git clone https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF
+   cd Qwen2.5-1.5B-Instruct-GGUF && git lfs pull && cd ..
+   ```
+
+3. **Start all services**:
+   ```bash
+   docker compose up
+   ```
+   Or run in detached mode:
+   ```bash
+   docker compose up -d
+   ```
+
+4. **Access the application**:
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:8000
+   - API Documentation: http://localhost:8000/docs
+
+5. **View logs** (if running in detached mode):
+   ```bash
+   docker compose logs -f
+   ```
+
+6. **Stop the stack**:
+   ```bash
+   docker compose down
+   ```
+   To remove all data including the database:
+   ```bash
+   docker compose down --volumes
+   ```
+
+### Local Development (Without Docker)
+For faster iteration with hot-reload during development:
+
 1. Copy `.env.postgres.example` to `.env.postgres` and edit credentials if needed.
 2. Pull the embedding and LLM model weights with Git LFS (see "Build and Run (Docker)" for commands) so TEI and llama.cpp have local data.
 3. Start the supporting services: `docker compose up -d postgres_dev embedding_dev llm_dev`.
