@@ -17,7 +17,7 @@ This repository shows how to ship a Retrieval-Augmented Generation (RAG) stack f
 
 ## Prerequisites
 - Docker (with BuildKit) and Docker Compose v2.
-- Python 3.11+ with `pip` or `uv` for backend dependencies.
+- Python 3.12+ with `pip` or `uv` for backend dependencies (Python 3.9 is not supported due to union type syntax).
 - Node.js 20+ and `npm` for the frontend.
 - `kubectl` plus a local cluster provider such as `kind` or `minikube` for Kubernetes testing.
 - Terraform (optional) when provisioning via `deploy/k8s-terraform/`.
@@ -190,20 +190,95 @@ Feedback and PRs welcome. Please treat this as a moving target and include your 
 
 ## Local Development with Docker Compose
 
-1. Copy `.env.postgres.example` to `.env.postgres` and tweak credentials/ports if needed.
-2. Start Postgres (and optional services) locally:
+### Initial Setup
+1. **Copy environment files**:
+   ```bash
+   cp .env.postgres.example .env.postgres
+   cp backend/.env.sample backend/.env
+   ```
+   Tweak credentials/ports in `.env.postgres` and `backend/.env` if needed.
+
+2. **Create Python virtual environment** (required for local Alembic):
+   ```bash
+   cd backend
+   python3.12 -m venv venv  # Use Python 3.12 or higher
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. **Start database and supporting services**:
    ```bash
    docker compose up -d postgres_dev embedding_dev llm_dev
    ```
-3. Run database migrations:
+   Wait for Postgres to be ready (check logs with `docker compose logs postgres_dev`).
+
+4. **Run database migrations** (critical - creates all tables):
    ```bash
    cd backend
+   source venv/bin/activate  # Make sure you're in the venv
    alembic upgrade head
    ```
-4. Start the backend locally (`uvicorn app:app`) or start the Compose `backend_dev`/`frontend_dev` services.
-5. Data is stored in the `pgdata` Docker volume. Remove it with `docker compose down --volumes` to reset.
+   This creates tables like `chat_history`, `documents`, and `pdf_ingestion` in the database.
 
-The Compose stack now uses the `pgvector/pgvector:16` image for persistence and shares credentials with the backend via `.env.postgres`.
+5. **Start the full stack**:
+   ```bash
+   # Option A: All services including backend/frontend
+   docker compose up
+
+   # Option B: Backend and frontend only (with supporting services already running)
+   docker compose up backend_dev frontend_dev
+   ```
+
+6. **Access the application**:
+   - **Frontend**: http://localhost:8080
+   - **Backend API**: http://localhost:8000
+   - **Swagger UI (API Documentation)**: http://localhost:8000/docs
+   - **ReDoc (Alternative API Documentation)**: http://localhost:8000/redoc
+   - **OpenAPI Schema**: http://localhost:8000/openapi.json
+
+7. **Data management**:
+   - Data is stored in the `pgdata` Docker volume
+   - Reset the database: `docker compose down --volumes`
+   - View logs: `docker compose logs -f`
+   - Stop the stack: `docker compose down`
+
+### Service Endpoints
+
+When running `docker compose up`, the following endpoints are available on your host machine:
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| Frontend | http://localhost:8080 | React UI for the RAG application |
+| Backend API | http://localhost:8000 | FastAPI backend (base endpoint) |
+| **Swagger UI** | **http://localhost:8000/docs** | **Interactive API documentation - try out endpoints here** |
+| ReDoc | http://localhost:8000/redoc | Alternative API documentation (read-only) |
+| OpenAPI Schema | http://localhost:8000/openapi.json | Raw OpenAPI specification |
+
+**Swagger UI** (`/docs`) is the most useful for testing the API. You can:
+- Browse all available endpoints
+- Test endpoints directly in the browser
+- View request/response schemas
+- See example data formats
+
+### Common Issues & Fixes
+
+**Issue**: `psycopg.OperationalError: nodename nor servname provided`
+- **Cause**: Missing virtual environment or incorrect Python version
+- **Fix**: Create venv with Python 3.12+ and install requirements as shown above
+
+**Issue**: `relation "chat_history" does not exist`
+- **Cause**: Database migrations were not applied
+- **Fix**: Run `alembic upgrade head` in the backend directory (see step 4 above)
+
+**Issue**: `TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'`
+- **Cause**: Python 3.9 or earlier (union types `|` syntax not supported)
+- **Fix**: Use Python 3.12 or higher for the venv
+
+**Issue**: `Extra inputs are not permitted [type=extra_forbidden]`
+- **Cause**: Missing `database_url` in config or environment variable mismatch
+- **Fix**: Ensure `DATABASE_URL` is set in `.env` (or ignored in config)
+
+The Compose stack uses the `pgvector/pgvector:16` image for persistence and shares credentials with the backend via `.env.postgres`.
 
 
 ## Run the stack on Kubernetes (local, prod-like)
