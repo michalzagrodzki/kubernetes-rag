@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic_settings import BaseSettings
 from pydantic import Field
 
@@ -5,7 +6,7 @@ class Settings(BaseSettings):
     # Embeddings
     embedding_model: str = Field("text-embedding-ada-002", env="EMBEDDING_MODEL")
     # Optional: direct embeddings to an OpenAI-compatible base URL (e.g., Docker Desktop model-runner)
-    embeddings_base_url: str | None = Field(None, env="EMBEDDINGS_BASE_URL")
+    embeddings_base_url: Optional[str] = Field(None, env="EMBEDDINGS_BASE_URL")
 
     # Local LLM (llm_dev) configuration
     # Model name for the local Qwen deployment
@@ -35,7 +36,11 @@ class Settings(BaseSettings):
     # PGVector
     pgvector_dim: int = Field(768, env="PGVECTOR_DIM")
 
+    # Database URL (alternative connection string)
+    database_url: Optional[str] = Field(None, env="DATABASE_URL")
+
     class Config:
         env_file = ".env"
+        extra = "ignore"  # Ignore extra environment variables
 
 settings = Settings()

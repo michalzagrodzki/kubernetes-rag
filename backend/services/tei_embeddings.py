@@ -1,5 +1,5 @@
 # pip install httpx langchain
-from typing import List
+from typing import List, Optional
 import httpx
 from langchain.embeddings.base import Embeddings
 
@@ -8,7 +8,7 @@ class TEIEmbeddings(Embeddings):
     def __init__(
         self,
         base_url: str,
-        api_key: str | None = None,
+        api_key: Optional[str] = None,
         timeout: float = 60.0,
         batch_size: int = 32,
     ):

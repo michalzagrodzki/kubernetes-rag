@@ -11,9 +11,9 @@ class QueryRequest(BaseModel):
 
 
 class SourceDoc(BaseModel):
-    page_content: str | None = None  # optional if not used
+    page_content: Optional[str] = None  # optional if not used
     metadata: Dict[str, Any]
-    similarity: float | None = None
+    similarity: Optional[float] = None
     id: str
 
 class QueryResponse(BaseModel):
